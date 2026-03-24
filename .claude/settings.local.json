@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/patrick/repos/rimelabs/speech-qa-2-prototype status)",
+      "Bash(git init:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo:*)",
+      "Bash(npm create:*)",
+      "Bash(npx @tanstack/cli@latest create --help)",
+      "Bash(npx:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
