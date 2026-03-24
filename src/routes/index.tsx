@@ -21,10 +21,6 @@ const RANDOM_USE_CASES = [
   'medical device company fielding a compliance question',
 ]
 
-const DEMO_TEXT = `Acme Corp's new Zyntex platform integrates directly with Salesforce CRM via GraphQL APIs.
-Our CEO Elon Musk and CTO Satya Nadella discussed the roadmap at KubeCon last quarter.
-The Liraglutide trial data from Dr. Schwarzkopf's team at Pfizer looks promising.
-Please reach out to Ramamurthy or Wojciechowski on the ISV partnerships team.`
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -300,116 +296,37 @@ function ResearchPage() {
           </p>
         </div>
 
-        {/* Script generator */}
+        {/* Single card: textarea + primary action + generate helper */}
         <div
-          className="mb-4 rounded-xl p-4"
-          style={{
-            backgroundColor: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-          }}
-        >
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
-            Generate a script
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Describe your use case — e.g. healthcare scheduling, telecom support, pharmacy refills…"
-              value={useCase}
-              onChange={e => { setUseCase(e.target.value); setScriptError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleGenerateScript()}
-              className="flex-1 rounded-lg px-3 py-2 text-sm outline-none transition"
-              style={{
-                backgroundColor: 'var(--surface-3)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-emphasis)',
-              }}
-            />
-            <button
-              onClick={() => handleGenerateScript()}
-              disabled={!useCase.trim() || generatingScript}
-              className="flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ backgroundColor: '#FF9300', color: '#000' }}
-            >
-              {generatingScript ? (
-                <>
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                  Generating…
-                </>
-              ) : (
-                'Generate'
-              )}
-            </button>
-            <div className="relative group">
-              <button
-                onClick={handleLucky}
-                disabled={generatingScript}
-                className="flex shrink-0 items-center rounded-lg px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
-                style={{
-                  backgroundColor: 'var(--surface-4)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                🎲
-              </button>
-              <div
-                className="pointer-events-none absolute bottom-full right-0 mb-2 w-48 rounded-lg px-3 py-2 text-xs opacity-0 transition-opacity group-hover:opacity-100"
-                style={{
-                  backgroundColor: 'var(--surface-4)',
-                  border: '1px solid var(--border-default)',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                I'm feeling lucky — picks a random use case, generates a script, and checks coverage automatically
-              </div>
-            </div>
-          </div>
-          {scriptError && (
-            <p className="mt-2 text-xs" style={{ color: '#f87171' }}>
-              {scriptError}
-            </p>
-          )}
-        </div>
-
-        {/* Input card */}
-        <div
-          className="rounded-2xl p-5"
+          className="rounded-2xl"
           style={{
             backgroundColor: 'var(--surface-1)',
             border: '1px solid var(--border-default)',
           }}
         >
-          <textarea
-            className="w-full resize-none rounded-xl p-4 font-mono text-sm leading-relaxed outline-none transition placeholder:font-sans"
-            rows={7}
-            placeholder="Paste a word list, script, or transcript — or use Generate above."
-            value={text}
-            onChange={e => handleTextChange(e.target.value)}
-            style={{
-              backgroundColor: 'var(--surface-2)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-emphasis)',
-            }}
-          />
+          {/* Textarea */}
+          <div className="p-5 pb-0">
+            <textarea
+              className="w-full resize-none rounded-xl p-4 font-mono text-sm leading-relaxed outline-none transition placeholder:font-sans"
+              rows={7}
+              placeholder="Paste a word list, script, or transcript…"
+              value={text}
+              onChange={e => handleTextChange(e.target.value)}
+              style={{
+                backgroundColor: 'var(--surface-2)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-emphasis)',
+              }}
+            />
+          </div>
 
-          <div className="mt-3 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {wordCount > 0
-                  ? `${wordCount.toLocaleString()} unique word${wordCount !== 1 ? 's' : ''}`
-                  : 'Word lists, scripts, transcripts'}
-              </span>
-              {!text && (
-                <button
-                  onClick={() => handleTextChange(DEMO_TEXT)}
-                  className="text-xs underline underline-offset-2 transition hover:opacity-80"
-                  style={{ color: '#FF9300' }}
-                >
-                  Try an example
-                </button>
-              )}
-            </div>
+          {/* Primary action row */}
+          <div className="flex items-center justify-between gap-4 px-5 py-3">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {wordCount > 0
+                ? `${wordCount.toLocaleString()} unique word${wordCount !== 1 ? 's' : ''}`
+                : 'Word lists, scripts, transcripts'}
+            </span>
             <button
               onClick={handleCheck}
               disabled={wordCount === 0 || status === 'checking'}
@@ -429,6 +346,65 @@ function ResearchPage() {
               )}
             </button>
           </div>
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0 20px' }} />
+
+          {/* Generate helper row */}
+          <div className="flex items-center gap-2 px-5 py-3">
+            <span className="shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Generate a sample:
+            </span>
+            <input
+              type="text"
+              placeholder="describe your use case…"
+              value={useCase}
+              onChange={e => { setUseCase(e.target.value); setScriptError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleGenerateScript()}
+              className="min-w-0 flex-1 rounded-lg px-3 py-1.5 text-xs outline-none transition"
+              style={{
+                backgroundColor: 'var(--surface-3)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-emphasis)',
+              }}
+            />
+            <button
+              onClick={() => handleGenerateScript()}
+              disabled={!useCase.trim() || generatingScript}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
+              style={{ backgroundColor: '#FF9300', color: '#000' }}
+            >
+              {generatingScript && useCase ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+                  Generating…
+                </span>
+              ) : 'Generate'}
+            </button>
+            <button
+              onClick={handleLucky}
+              disabled={generatingScript}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
+              style={{
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--surface-3)',
+              }}
+            >
+              {generatingScript && !useCase ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--border-strong)] border-t-[var(--text-secondary)]" />
+                  Generating…
+                </span>
+              ) : 'Surprise me'}
+            </button>
+          </div>
+
+          {scriptError && (
+            <p className="px-5 pb-3 text-xs" style={{ color: '#f87171' }}>
+              {scriptError}
+            </p>
+          )}
         </div>
 
         {/* Error */}
