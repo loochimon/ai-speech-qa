@@ -9,7 +9,11 @@ export const Route = createRootRoute({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'SpeechQA Research — Rime' },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'icon', href: '/favicon-light.png', media: '(prefers-color-scheme: light)' },
+      { rel: 'icon', href: '/favicon-dark.png', media: '(prefers-color-scheme: dark)' },
+    ],
   }),
   shellComponent: RootDocument,
 })
