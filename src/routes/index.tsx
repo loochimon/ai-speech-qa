@@ -8,6 +8,19 @@ export const Route = createFileRoute('/')({ component: ResearchPage })
 const RIME_API_KEY = import.meta.env.VITE_RIME_API_KEY as string
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string
 
+const RANDOM_USE_CASES = [
+  'pharmacy prescription refill and drug interaction check',
+  'airline rebooking after a flight cancellation',
+  'hospital patient intake and insurance verification',
+  'telecom troubleshooting a fiber outage',
+  'wealth management portfolio review call',
+  'automotive dealership scheduling a recall repair',
+  'SaaS technical support for an API integration issue',
+  'utility company handling a billing dispute',
+  'insurance claim intake after a car accident',
+  'medical device company fielding a compliance question',
+]
+
 const DEMO_TEXT = `Acme Corp's new Zyntex platform integrates directly with Salesforce CRM via GraphQL APIs.
 Our CEO Elon Musk and CTO Satya Nadella discussed the roadmap at KubeCon last quarter.
 The Liraglutide trial data from Dr. Schwarzkopf's team at Pfizer looks promising.
@@ -190,19 +203,57 @@ function ResearchPage() {
     [playingWord],
   )
 
-  const handleGenerateScript = useCallback(async () => {
-    if (!useCase.trim()) return
+  const handleGenerateScript = useCallback(async (overrideUseCase?: string) => {
+    const target = overrideUseCase ?? useCase
+    if (!target.trim()) return
     setGeneratingScript(true)
     setScriptError('')
     try {
-      const script = await generateScript(useCase)
+      const script = await generateScript(target)
       handleTextChange(script)
+      return script
     } catch (e) {
       setScriptError(e instanceof Error ? e.message : 'Failed to generate script.')
     } finally {
       setGeneratingScript(false)
     }
   }, [useCase, handleTextChange])
+
+  const handleLucky = useCallback(async () => {
+    const pick = RANDOM_USE_CASES[Math.floor(Math.random() * RANDOM_USE_CASES.length)]
+    setUseCase(pick)
+    setGeneratingScript(true)
+    setScriptError('')
+    try {
+      const script = await generateScript(pick)
+      handleTextChange(script)
+      // auto-run coverage on the generated script
+      const freq = parseWords(script)
+      if (freq.size === 0) return
+      setStatus('checking')
+      setResults(null)
+      const uniqueWords = Array.from(freq.keys())
+      const oovList = await fetchOov(uniqueWords)
+      const oovSet = new Set(oovList.map(w => w.toLowerCase()))
+      const oovWords: OovWord[] = uniqueWords
+        .filter(w => oovSet.has(w))
+        .map(w => ({ word: w, frequency: freq.get(w)! }))
+        .sort((a, b) => b.frequency - a.frequency)
+      const totalTokens = Array.from(freq.values()).reduce((s, v) => s + v, 0)
+      const oovTokenCount = oovWords.reduce((s, w) => s + w.frequency, 0)
+      const coveragePct =
+        uniqueWords.length > 0
+          ? ((uniqueWords.length - oovWords.length) / uniqueWords.length) * 100
+          : 100
+      setResults({ totalTokens, uniqueWordCount: uniqueWords.length, oovWords, oovTokenCount, coveragePct })
+      setStatus('done')
+    } catch (e) {
+      setScriptError(e instanceof Error ? e.message : 'Something went wrong.')
+      setStatus('error')
+    } finally {
+      setGeneratingScript(false)
+    }
+  }, [handleTextChange])
 
   const coverageColor =
     !results
@@ -268,7 +319,7 @@ function ResearchPage() {
               }}
             />
             <button
-              onClick={handleGenerateScript}
+              onClick={() => handleGenerateScript()}
               disabled={!useCase.trim() || generatingScript}
               className="flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
               style={{ backgroundColor: '#FF9300', color: '#000' }}
@@ -282,6 +333,30 @@ function ResearchPage() {
                 'Generate'
               )}
             </button>
+            <div className="relative group">
+              <button
+                onClick={handleLucky}
+                disabled={generatingScript}
+                className="flex shrink-0 items-center rounded-lg px-3 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
+                style={{
+                  backgroundColor: 'var(--surface-4)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                🎲
+              </button>
+              <div
+                className="pointer-events-none absolute bottom-full right-0 mb-2 w-48 rounded-lg px-3 py-2 text-xs opacity-0 transition-opacity group-hover:opacity-100"
+                style={{
+                  backgroundColor: 'var(--surface-4)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                I'm feeling lucky — picks a random use case, generates a script, and checks coverage automatically
+              </div>
+            </div>
           </div>
           {scriptError && (
             <p className="mt-2 text-xs" style={{ color: '#f87171' }}>
