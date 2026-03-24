@@ -1,57 +1,65 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
+import { HeadContent, Scripts, createRootRoute, Outlet } from '@tanstack/react-router'
 
 import appCss from '../styles.css?url'
-
-const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
-      {
-        charSet: 'utf-8',
-      },
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
-      },
-      {
-        title: 'SpeechQA Research — Rime',
-      },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'SpeechQA Research — Rime' },
     ],
-    links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
-    ],
+    links: [{ rel: 'stylesheet', href: appCss }],
   }),
   shellComponent: RootDocument,
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
-      <body className="font-sans antialiased [overflow-wrap:anywhere]">
-        {children}
-        <TanStackDevtools
-          config={{
-            position: 'bottom-right',
+      <body>
+        <nav
+          style={{
+            borderBottom: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--surface-1)',
+            padding: '0 1.5rem',
+            height: '52px',
+            display: 'flex',
+            alignItems: 'center',
           }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        >
+          <RimeLogo />
+        </nav>
+        {children}
         <Scripts />
       </body>
     </html>
+  )
+}
+
+function RimeLogo() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+        <rect x="0" y="5" width="2" height="4" rx="1" fill="white" opacity="0.5" />
+        <rect x="4" y="2.5" width="2" height="9" rx="1" fill="white" opacity="0.7" />
+        <rect x="8" y="0" width="2" height="14" rx="1" fill="white" />
+        <rect x="12" y="2.5" width="2" height="9" rx="1" fill="white" opacity="0.7" />
+        <rect x="16" y="5" width="2" height="4" rx="1" fill="white" opacity="0.5" />
+      </svg>
+      <span
+        style={{
+          color: 'white',
+          fontWeight: 600,
+          fontSize: '15px',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        rime
+      </span>
+    </div>
   )
 }

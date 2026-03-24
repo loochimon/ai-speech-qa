@@ -5,7 +5,9 @@ export const Route = createFileRoute('/')({ component: ResearchPage })
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const API_KEY = 'REDACTED_RIME_API_KEY'
+const RIME_API_KEY = 'REDACTED_RIME_API_KEY'
+const OPENAI_API_KEY =
+  'REDACTED_OPENAI_API_KEY'
 
 const DEMO_TEXT = `Acme Corp's new Zyntex platform integrates directly with Salesforce CRM via GraphQL APIs.
 Our CEO Elon Musk and CTO Satya Nadella discussed the roadmap at KubeCon last quarter.
@@ -14,19 +16,14 @@ Please reach out to Ramamurthy or Wojciechowski on the ISV partnerships team.`
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Extract words and their frequencies from arbitrary text.
- * Handles free text, CSV, newline-separated lists, scripts, transcripts.
- */
 function parseWords(text: string): Map<string, number> {
   const freq = new Map<string, number>()
   const tokens = text
     .toLowerCase()
-    .replace(/[^a-z0-9'\-\s]/g, ' ') // keep apostrophes + hyphens mid-word
+    .replace(/[^a-z0-9'\-\s]/g, ' ')
     .split(/\s+/)
-
   for (let token of tokens) {
-    token = token.replace(/^['\-]+|['\-]+$/g, '') // strip leading/trailing ' and -
+    token = token.replace(/^['\-]+|['\-]+$/g, '')
     if (token.length >= 2 && /[a-z]/.test(token)) {
       freq.set(token, (freq.get(token) ?? 0) + 1)
     }
@@ -38,7 +35,7 @@ async function fetchOov(words: string[]): Promise<string[]> {
   const res = await fetch('https://beta.rime.ai/oov', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${RIME_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ text: words.join(' ') }),
@@ -51,7 +48,7 @@ async function fetchWordAudio(word: string): Promise<string> {
   const res = await fetch('https://users.rime.ai/v1/rime-tts', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${RIME_API_KEY}`,
       'Content-Type': 'application/json',
       Accept: 'audio/mp3',
     },
@@ -60,6 +57,35 @@ async function fetchWordAudio(word: string): Promise<string> {
   if (!res.ok) throw new Error(`TTS API error ${res.status}`)
   const blob = await res.blob()
   return URL.createObjectURL(blob)
+}
+
+async function generateScript(useCase: string): Promise<string> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a scriptwriter for AI voice assistants. Generate realistic, natural-sounding call scripts that contain domain-specific vocabulary, brand names, product names, technical terms, and proper nouns — the kinds of words that a text-to-speech engine might struggle to pronounce. Include a variety of unusual words. Return ONLY the script text, no labels, no stage directions, no explanation.',
+        },
+        {
+          role: 'user',
+          content: `Write a short call center / voice AI script (3–5 sentences) for this use case: ${useCase}`,
+        },
+      ],
+      max_tokens: 300,
+      temperature: 0.8,
+    }),
+  })
+  if (!res.ok) throw new Error(`OpenAI API error ${res.status}`)
+  const data = await res.json()
+  return data.choices[0].message.content.trim()
 }
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -73,8 +99,8 @@ interface Results {
   totalTokens: number
   uniqueWordCount: number
   oovWords: OovWord[]
-  oovTokenCount: number   // sum of frequencies for OOV words
-  coveragePct: number     // unique-word coverage
+  oovTokenCount: number
+  coveragePct: number
 }
 
 // ─── component ────────────────────────────────────────────────────────────────
@@ -89,6 +115,11 @@ function ResearchPage() {
   const audioCache = useRef(new Map<string, string>())
   const currentAudio = useRef<HTMLAudioElement | null>(null)
 
+  // Script generator state
+  const [useCase, setUseCase] = useState('')
+  const [generatingScript, setGeneratingScript] = useState(false)
+  const [scriptError, setScriptError] = useState('')
+
   const wordCount = useMemo(() => parseWords(text).size, [text])
 
   const handleTextChange = useCallback((val: string) => {
@@ -101,28 +132,23 @@ function ResearchPage() {
   const handleCheck = useCallback(async () => {
     const freq = parseWords(text)
     if (freq.size === 0) return
-
     setStatus('checking')
     setResults(null)
     setError('')
-
     try {
       const uniqueWords = Array.from(freq.keys())
       const oovList = await fetchOov(uniqueWords)
       const oovSet = new Set(oovList.map(w => w.toLowerCase()))
-
       const oovWords: OovWord[] = uniqueWords
         .filter(w => oovSet.has(w))
         .map(w => ({ word: w, frequency: freq.get(w)! }))
         .sort((a, b) => b.frequency - a.frequency)
-
       const totalTokens = Array.from(freq.values()).reduce((s, v) => s + v, 0)
       const oovTokenCount = oovWords.reduce((s, w) => s + w.frequency, 0)
       const coveragePct =
         uniqueWords.length > 0
           ? ((uniqueWords.length - oovWords.length) / uniqueWords.length) * 100
           : 100
-
       setResults({ totalTokens, uniqueWordCount: uniqueWords.length, oovWords, oovTokenCount, coveragePct })
       setStatus('done')
     } catch (e) {
@@ -133,19 +159,15 @@ function ResearchPage() {
 
   const handlePlay = useCallback(
     async (word: string) => {
-      // Toggle off
       if (playingWord === word) {
         currentAudio.current?.pause()
         currentAudio.current = null
         setPlayingWord(null)
         return
       }
-
-      // Stop current
       currentAudio.current?.pause()
       currentAudio.current = null
       setPlayingWord(null)
-
       setLoadingWord(word)
       try {
         let url = audioCache.current.get(word)
@@ -162,7 +184,7 @@ function ResearchPage() {
         await audio.play()
         setPlayingWord(word)
       } catch {
-        // audio failed silently — could add error toast here
+        // fail silently
       } finally {
         setLoadingWord(null)
       }
@@ -170,44 +192,130 @@ function ResearchPage() {
     [playingWord],
   )
 
+  const handleGenerateScript = useCallback(async () => {
+    if (!useCase.trim()) return
+    setGeneratingScript(true)
+    setScriptError('')
+    try {
+      const script = await generateScript(useCase)
+      handleTextChange(script)
+    } catch (e) {
+      setScriptError(e instanceof Error ? e.message : 'Failed to generate script.')
+    } finally {
+      setGeneratingScript(false)
+    }
+  }, [useCase, handleTextChange])
+
   const coverageColor =
-    !results ? 'text-gray-900'
-    : results.coveragePct >= 95 ? 'text-emerald-600'
-    : results.coveragePct >= 80 ? 'text-amber-500'
-    : 'text-red-500'
+    !results
+      ? 'text-white'
+      : results.coveragePct >= 95
+        ? 'text-emerald-400'
+        : results.coveragePct >= 80
+          ? 'text-amber-400'
+          : 'text-red-400'
 
   const barColor =
-    !results ? 'bg-gray-300'
-    : results.coveragePct >= 95 ? 'bg-emerald-500'
-    : results.coveragePct >= 80 ? 'bg-amber-400'
-    : 'bg-red-400'
+    !results
+      ? 'bg-[#3b3b3b]'
+      : results.coveragePct >= 95
+        ? 'bg-emerald-500'
+        : results.coveragePct >= 80
+          ? 'bg-amber-400'
+          : 'bg-red-500'
 
   return (
-    <div className="min-h-screen bg-slate-50 text-gray-900">
-      <div className="mx-auto max-w-2xl px-4 py-14">
+    <div className="min-h-screen px-4 py-10" style={{ backgroundColor: 'var(--surface-0)' }}>
+      <div className="mx-auto max-w-2xl">
 
-        {/* Header */}
+        {/* Page header */}
         <div className="mb-8">
-          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-teal-600">SpeechQA 2.0</p>
-          <h1 className="text-3xl font-bold tracking-tight">Research</h1>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <p
+            className="mb-1 text-xs font-semibold uppercase tracking-widest"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            SpeechQA 2.0
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text-emphasis)' }}>
+            Research
+          </h1>
+          <p className="mt-1.5 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Check how well Rime handles your vocabulary before you ship.
           </p>
         </div>
 
+        {/* Script generator */}
+        <div
+          className="mb-4 rounded-xl p-4"
+          style={{
+            backgroundColor: 'var(--surface-2)',
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
+            Generate a script
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Describe your use case — e.g. healthcare appointment reminder, telecom IVR…"
+              value={useCase}
+              onChange={e => { setUseCase(e.target.value); setScriptError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleGenerateScript()}
+              className="flex-1 rounded-lg px-3 py-2 text-sm outline-none transition"
+              style={{
+                backgroundColor: 'var(--surface-3)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-emphasis)',
+              }}
+            />
+            <button
+              onClick={handleGenerateScript}
+              disabled={!useCase.trim() || generatingScript}
+              className="flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: '#FF9300', color: '#000' }}
+            >
+              {generatingScript ? (
+                <>
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+                  Generating…
+                </>
+              ) : (
+                'Generate'
+              )}
+            </button>
+          </div>
+          {scriptError && (
+            <p className="mt-2 text-xs" style={{ color: '#f87171' }}>
+              {scriptError}
+            </p>
+          )}
+        </div>
+
         {/* Input card */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div
+          className="rounded-2xl p-5"
+          style={{
+            backgroundColor: 'var(--surface-1)',
+            border: '1px solid var(--border-default)',
+          }}
+        >
           <textarea
-            className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-4 font-mono text-sm leading-relaxed text-gray-800 placeholder:font-sans placeholder:text-gray-400 transition focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="w-full resize-none rounded-xl p-4 font-mono text-sm leading-relaxed outline-none transition placeholder:font-sans"
             rows={7}
-            placeholder="Paste a word list, script, or transcript — one word per line, comma-separated, or free text."
+            placeholder="Paste a word list, script, or transcript — or use Generate above."
             value={text}
             onChange={e => handleTextChange(e.target.value)}
+            style={{
+              backgroundColor: 'var(--surface-2)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-emphasis)',
+            }}
           />
 
           <div className="mt-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {wordCount > 0
                   ? `${wordCount.toLocaleString()} unique word${wordCount !== 1 ? 's' : ''}`
                   : 'Word lists, scripts, transcripts'}
@@ -215,21 +323,25 @@ function ResearchPage() {
               {!text && (
                 <button
                   onClick={() => handleTextChange(DEMO_TEXT)}
-                  className="text-xs text-teal-600 underline underline-offset-2 hover:text-teal-700"
+                  className="text-xs underline underline-offset-2 transition hover:opacity-80"
+                  style={{ color: '#FF9300' }}
                 >
                   Try an example
                 </button>
               )}
             </div>
-
             <button
               onClick={handleCheck}
               disabled={wordCount === 0 || status === 'checking'}
-              className="flex shrink-0 items-center gap-2 rounded-full bg-teal-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex shrink-0 items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: 'var(--text-emphasis)', color: 'var(--surface-0)' }}
             >
               {status === 'checking' ? (
                 <>
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  <span
+                    className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent"
+                    style={{ borderColor: 'var(--surface-0)', borderTopColor: 'transparent' }}
+                  />
                   Checking…
                 </>
               ) : (
@@ -241,7 +353,14 @@ function ResearchPage() {
 
         {/* Error */}
         {status === 'error' && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div
+            className="mt-4 rounded-xl px-4 py-3 text-sm"
+            style={{
+              backgroundColor: 'rgba(248,113,113,0.1)',
+              border: '1px solid rgba(248,113,113,0.3)',
+              color: '#f87171',
+            }}
+          >
             {error}
           </div>
         )}
@@ -251,22 +370,29 @@ function ResearchPage() {
           <div className="mt-5 space-y-4">
 
             {/* Summary */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div
+              className="rounded-2xl p-6"
+              style={{
+                backgroundColor: 'var(--surface-1)',
+                border: '1px solid var(--border-default)',
+              }}
+            >
               <div className="flex items-center gap-8">
-                {/* Big number */}
                 <div className="shrink-0 text-center">
                   <div className={`text-5xl font-bold leading-none tabular-nums ${coverageColor}`}>
                     {results.coveragePct.toFixed(1)}
                     <span className="text-3xl font-semibold">%</span>
                   </div>
-                  <div className="mt-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400">
+                  <div
+                    className="mt-1.5 text-xs font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
                     covered
                   </div>
                 </div>
 
-                <div className="h-16 w-px shrink-0 bg-gray-100" />
+                <div className="h-16 w-px shrink-0" style={{ backgroundColor: 'var(--border-subtle)' }} />
 
-                {/* Stats */}
                 <dl className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm">
                   <Stat label="Total tokens" value={results.totalTokens.toLocaleString()} />
                   <Stat label="Unique words" value={results.uniqueWordCount.toLocaleString()} />
@@ -283,8 +409,10 @@ function ResearchPage() {
                 </dl>
               </div>
 
-              {/* Coverage bar */}
-              <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="mt-5 h-1.5 overflow-hidden rounded-full"
+                style={{ backgroundColor: 'var(--surface-4)' }}
+              >
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${barColor}`}
                   style={{ width: `${results.coveragePct}%` }}
@@ -292,29 +420,58 @@ function ResearchPage() {
               </div>
             </div>
 
-            {/* OOV word list */}
+            {/* OOV list */}
             {results.oovWords.length > 0 ? (
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-100 px-5 py-4">
-                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <div
+                className="overflow-hidden rounded-2xl"
+                style={{
+                  backgroundColor: 'var(--surface-1)',
+                  border: '1px solid var(--border-default)',
+                }}
+              >
+                <div
+                  className="px-5 py-4"
+                  style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                >
+                  <h2
+                    className="flex items-center gap-2 text-sm font-semibold"
+                    style={{ color: 'var(--text-emphasis)' }}
+                  >
                     Out-of-vocabulary words
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                      style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}
+                    >
                       {results.oovWords.length}
                     </span>
                   </h2>
-                  <p className="mt-0.5 text-xs text-gray-400">
+                  <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                     Rime will attempt to pronounce these. Click play to hear how.
                   </p>
                 </div>
 
-                <div className="divide-y divide-gray-50">
-                  {results.oovWords.map(({ word, frequency }) => (
+                <div>
+                  {results.oovWords.map(({ word, frequency }, i) => (
                     <div
                       key={word}
-                      className="flex items-center gap-3 px-5 py-3 transition hover:bg-gray-50"
+                      className="flex items-center gap-3 px-5 py-3 transition"
+                      style={{
+                        borderTop: i > 0 ? '1px solid var(--border-subtle)' : undefined,
+                      }}
                     >
-                      <span className="flex-1 font-mono text-sm font-medium">{word}</span>
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs tabular-nums text-gray-500">
+                      <span
+                        className="flex-1 font-mono text-sm font-medium"
+                        style={{ color: 'var(--text-emphasis)' }}
+                      >
+                        {word}
+                      </span>
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs tabular-nums"
+                        style={{
+                          backgroundColor: 'var(--surface-3)',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
                         ×{frequency.toLocaleString()}
                       </span>
                       <PlayButton
@@ -328,9 +485,17 @@ function ResearchPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-10 text-center">
-                <p className="text-lg font-semibold text-emerald-700">Full coverage</p>
-                <p className="mt-1 text-sm text-emerald-600">
+              <div
+                className="rounded-2xl px-6 py-10 text-center"
+                style={{
+                  backgroundColor: 'rgba(52,211,153,0.08)',
+                  border: '1px solid rgba(52,211,153,0.2)',
+                }}
+              >
+                <p className="text-lg font-semibold" style={{ color: '#34d399' }}>
+                  Full coverage
+                </p>
+                <p className="mt-1 text-sm" style={{ color: 'rgba(52,211,153,0.7)' }}>
                   Every word in your input is in Rime's dictionary.
                 </p>
               </div>
@@ -347,8 +512,11 @@ function ResearchPage() {
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <>
-      <dt className="text-gray-500">{label}</dt>
-      <dd className={`font-semibold tabular-nums ${warn ? 'text-amber-600' : 'text-gray-800'}`}>
+      <dt style={{ color: 'var(--text-secondary)' }}>{label}</dt>
+      <dd
+        className="font-semibold tabular-nums"
+        style={{ color: warn ? '#fbbf24' : 'var(--text-emphasis)' }}
+      >
         {value}
       </dd>
     </>
@@ -371,21 +539,25 @@ function PlayButton({
       onClick={() => onPlay(word)}
       disabled={isLoading}
       title={`Play Rime's pronunciation of "${word}"`}
-      className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
+      style={{
+        border: '1px solid var(--border-default)',
+        backgroundColor: 'var(--surface-3)',
+        color: isPlaying ? '#fbbf24' : 'var(--text-secondary)',
+      }}
     >
       {isLoading ? (
         <>
-          <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-200 border-t-teal-600" />
+          <span
+            className="h-3 w-3 animate-spin rounded-full border-2"
+            style={{ borderColor: 'var(--border-strong)', borderTopColor: '#FF9300' }}
+          />
           Loading
         </>
       ) : isPlaying ? (
-        <>
-          <span>■</span> Stop
-        </>
+        <>■ Stop</>
       ) : (
-        <>
-          <span>▶</span> Play
-        </>
+        <>▶ Play</>
       )}
     </button>
   )
