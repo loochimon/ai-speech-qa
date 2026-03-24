@@ -70,11 +70,11 @@ async function generateScript(useCase: string): Promise<string> {
         {
           role: 'system',
           content:
-            'You are a scriptwriter for AI voice assistants. Generate realistic, natural-sounding call center conversations with 6–10 back-and-forth exchanges between an Agent and a Customer. Use domain-specific vocabulary, brand names, product names, technical terms, medications, proper nouns, and industry jargon — the kinds of words a text-to-speech engine might mispronounce. Include a variety of unusual words throughout. Format each line as "Agent: ..." or "Customer: ..." on its own line. Return ONLY the dialogue, no stage directions, no preamble, no explanation.',
+            'You are a scriptwriter for AI voice assistants. Generate realistic, natural-sounding customer service conversations with 6–10 back-and-forth exchanges between an Agent and a Customer. Use domain-specific vocabulary, brand names, product names, technical terms, medications, proper nouns, and industry jargon — the kinds of words a text-to-speech engine might mispronounce. Include a variety of unusual words throughout. Format each line as "Agent: ..." or "Customer: ..." on its own line. Return ONLY the dialogue, no stage directions, no preamble, no explanation.',
         },
         {
           role: 'user',
-          content: `Write a full call center conversation for this use case: ${useCase}`,
+          content: `Write a full customer service conversation for this use case: ${useCase}`,
         },
       ],
       max_tokens: 600,
@@ -256,7 +256,7 @@ function ResearchPage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Describe your use case — e.g. healthcare appointment reminder, telecom IVR…"
+              placeholder="Describe your use case — e.g. healthcare scheduling, telecom support, pharmacy refills…"
               value={useCase}
               onChange={e => { setUseCase(e.target.value); setScriptError('') }}
               onKeyDown={e => e.key === 'Enter' && handleGenerateScript()}
