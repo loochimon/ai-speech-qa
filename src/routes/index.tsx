@@ -15,16 +15,15 @@ Please reach out to Ramamurthy or Wojciechowski on the ISV partnerships team.`
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+const wordSegmenter = new Intl.Segmenter('en', { granularity: 'word' })
+
 function parseWords(text: string): Map<string, number> {
   const freq = new Map<string, number>()
-  const tokens = text
-    .toLowerCase()
-    .replace(/[^a-z0-9'\-\s]/g, ' ')
-    .split(/\s+/)
-  for (let token of tokens) {
-    token = token.replace(/^['\-]+|['\-]+$/g, '')
-    if (token.length >= 2 && /[a-z]/.test(token)) {
-      freq.set(token, (freq.get(token) ?? 0) + 1)
+  for (const { segment, isWordLike } of wordSegmenter.segment(text)) {
+    if (!isWordLike) continue
+    const word = segment.toLowerCase()
+    if (word.length >= 2 && /[a-z]/.test(word)) {
+      freq.set(word, (freq.get(word) ?? 0) + 1)
     }
   }
   return freq
