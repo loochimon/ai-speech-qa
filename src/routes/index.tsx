@@ -5,9 +5,8 @@ export const Route = createFileRoute('/')({ component: ResearchPage })
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const RIME_API_KEY = 'REDACTED_RIME_API_KEY'
-const OPENAI_API_KEY =
-  'REDACTED_OPENAI_API_KEY'
+const RIME_API_KEY = import.meta.env.VITE_RIME_API_KEY as string
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string
 
 const DEMO_TEXT = `Acme Corp's new Zyntex platform integrates directly with Salesforce CRM via GraphQL APIs.
 Our CEO Elon Musk and CTO Satya Nadella discussed the roadmap at KubeCon last quarter.
