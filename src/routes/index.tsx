@@ -21,25 +21,50 @@ const RANDOM_USE_CASES = [
   'medical device company fielding a compliance question',
 ]
 
-
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const wordSegmenter = new Intl.Segmenter('en', { granularity: 'word' })
 
+// Matches special tokens that must stay whole: credit cards first (most specific),
+// then phone numbers, then email addresses.
+const SPECIAL_TOKEN_RE =
+  /\b\d{4}(?:[ \-]\d{4}){3}\b|(?:\+?1[ \-.])?(?:\(\d{3}\)|\d{3})[ \-.]\d{3}[ \-.]\d{4}|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g
+
 // Returns Map<displayWord, frequency> where displayWord preserves the
 // capitalisation of the first occurrence (e.g. "Pfizer", not "pfizer").
 // Deduplication is case-insensitive via a separate lowercase→display map.
+// Email addresses, phone numbers, and credit card numbers are kept as single tokens.
 function parseWords(text: string): Map<string, number> {
   const freq = new Map<string, number>()
   const seen = new Map<string, string>() // lowercase → first-seen display form
-  for (const { segment, isWordLike } of wordSegmenter.segment(text)) {
-    if (!isWordLike) continue
-    if (segment.length < 2 || !/[a-zA-Z]/.test(segment)) continue
-    const lower = segment.toLowerCase()
-    if (!seen.has(lower)) seen.set(lower, segment)
+
+  const addToken = (token: string) => {
+    if (token.length < 2) return
+    const lower = token.toLowerCase()
+    if (!seen.has(lower)) seen.set(lower, token)
     const display = seen.get(lower)!
     freq.set(display, (freq.get(display) ?? 0) + 1)
   }
+
+  const addSegmentedText = (chunk: string) => {
+    for (const { segment, isWordLike } of wordSegmenter.segment(chunk)) {
+      if (!isWordLike) continue
+      if (segment.length < 2 || !/[a-zA-Z]/.test(segment)) continue
+      addToken(segment)
+    }
+  }
+
+  // Extract special tokens first so they aren't split by the segmenter
+  const specialRe = new RegExp(SPECIAL_TOKEN_RE.source, 'g')
+  let lastIndex = 0
+  for (const match of text.matchAll(specialRe)) {
+    addSegmentedText(text.slice(lastIndex, match.index))
+    // Only count special tokens that contain letters (emails); skip pure-digit phones/CCs
+    if (/[a-zA-Z]/.test(match[0])) addToken(match[0])
+    lastIndex = match.index! + match[0].length
+  }
+  addSegmentedText(text.slice(lastIndex))
+
   return freq
 }
 
@@ -129,7 +154,6 @@ function ResearchPage() {
   const audioCache = useRef(new Map<string, string>())
   const currentAudio = useRef<HTMLAudioElement | null>(null)
 
-  // Script generator state
   const [useCase, setUseCase] = useState('')
   const [generatingScript, setGeneratingScript] = useState(false)
   const [scriptError, setScriptError] = useState('')
@@ -230,7 +254,6 @@ function ResearchPage() {
     try {
       const script = await generateScript(pick)
       handleTextChange(script)
-      // auto-run coverage on the generated script
       const freq = parseWords(script)
       if (freq.size === 0) return
       setStatus('checking')
@@ -260,7 +283,7 @@ function ResearchPage() {
 
   const coverageColor =
     !results
-      ? 'text-white'
+      ? ''
       : results.coveragePct >= 95
         ? 'text-emerald-400'
         : results.coveragePct >= 80
@@ -269,7 +292,7 @@ function ResearchPage() {
 
   const barColor =
     !results
-      ? 'bg-[#3b3b3b]'
+      ? ''
       : results.coveragePct >= 95
         ? 'bg-emerald-500'
         : results.coveragePct >= 80
@@ -278,7 +301,7 @@ function ResearchPage() {
 
   return (
     <div className="min-h-screen px-4 py-10" style={{ backgroundColor: 'var(--surface-0)' }}>
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-5xl">
 
         {/* Page header */}
         <div className="mb-8">
@@ -296,136 +319,127 @@ function ResearchPage() {
           </p>
         </div>
 
-        {/* Single card: textarea + primary action + generate helper */}
-        <div
-          className="rounded-2xl"
-          style={{
-            backgroundColor: 'var(--surface-1)',
-            border: '1px solid var(--border-default)',
-          }}
-        >
-          {/* Textarea */}
-          <div className="p-5 pb-0">
-            <textarea
-              className="w-full resize-none rounded-xl p-4 font-mono text-sm leading-relaxed outline-none transition placeholder:font-sans"
-              rows={7}
-              placeholder="Paste a word list, script, or transcript…"
-              value={text}
-              onChange={e => handleTextChange(e.target.value)}
-              style={{
-                backgroundColor: 'var(--surface-2)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-emphasis)',
-              }}
-            />
-          </div>
+        {/* Two-column layout */}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[5fr_7fr]">
 
-          {/* Primary action row */}
-          <div className="flex items-center justify-between gap-4 px-5 py-3">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {wordCount > 0
-                ? `${wordCount.toLocaleString()} unique word${wordCount !== 1 ? 's' : ''}`
-                : 'Word lists, scripts, transcripts'}
-            </span>
-            <button
-              onClick={handleCheck}
-              disabled={wordCount === 0 || status === 'checking'}
-              className="flex shrink-0 items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ backgroundColor: 'var(--text-emphasis)', color: 'var(--surface-0)' }}
-            >
-              {status === 'checking' ? (
-                <>
-                  <span
-                    className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent"
-                    style={{ borderColor: 'var(--surface-0)', borderTopColor: 'transparent' }}
-                  />
-                  Checking…
-                </>
-              ) : (
-                'Check Coverage'
-              )}
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0 20px' }} />
-
-          {/* Generate helper row */}
-          <div className="flex items-center gap-2 px-5 py-3">
-            <span className="shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Generate a sample:
-            </span>
-            <input
-              type="text"
-              placeholder="describe your use case…"
-              value={useCase}
-              onChange={e => { setUseCase(e.target.value); setScriptError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleGenerateScript()}
-              className="min-w-0 flex-1 rounded-lg px-3 py-1.5 text-xs outline-none transition"
-              style={{
-                backgroundColor: 'var(--surface-3)',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-emphasis)',
-              }}
-            />
-            <button
-              onClick={() => handleGenerateScript()}
-              disabled={!useCase.trim() || generatingScript}
-              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
-              style={{ backgroundColor: '#FF9300', color: '#000' }}
-            >
-              {generatingScript && useCase ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-black/30 border-t-black" />
-                  Generating…
-                </span>
-              ) : 'Generate'}
-            </button>
-            <button
-              onClick={handleLucky}
-              disabled={generatingScript}
-              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
-              style={{
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-secondary)',
-                backgroundColor: 'var(--surface-3)',
-              }}
-            >
-              {generatingScript && !useCase ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--border-strong)] border-t-[var(--text-secondary)]" />
-                  Generating…
-                </span>
-              ) : 'Surprise me'}
-            </button>
-          </div>
-
-          {scriptError && (
-            <p className="px-5 pb-3 text-xs" style={{ color: '#f87171' }}>
-              {scriptError}
-            </p>
-          )}
-        </div>
-
-        {/* Error */}
-        {status === 'error' && (
+          {/* Left: Input card */}
           <div
-            className="mt-4 rounded-xl px-4 py-3 text-sm"
+            className="rounded-2xl"
             style={{
-              backgroundColor: 'rgba(248,113,113,0.1)',
-              border: '1px solid rgba(248,113,113,0.3)',
-              color: '#f87171',
+              backgroundColor: 'var(--surface-1)',
+              border: '1px solid var(--border-default)',
             }}
           >
-            {error}
+            <div className="p-5 pb-0">
+              <textarea
+                className="w-full resize-none rounded-xl p-4 font-mono text-sm leading-relaxed outline-none transition placeholder:font-sans"
+                rows={12}
+                placeholder="Paste a word list, script, or transcript…"
+                value={text}
+                onChange={e => handleTextChange(e.target.value)}
+                style={{
+                  backgroundColor: 'var(--surface-2)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-emphasis)',
+                }}
+              />
+            </div>
+
+            {/* Word count */}
+            <div className="px-5 py-2">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {wordCount > 0
+                  ? `${wordCount.toLocaleString()} unique word${wordCount !== 1 ? 's' : ''}`
+                  : 'Word lists, scripts, transcripts'}
+              </span>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '0 20px' }} />
+
+            {/* Generate helper row */}
+            <div className="flex items-center gap-2 px-5 py-3">
+              <span className="shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Generate a sample:
+              </span>
+              <input
+                type="text"
+                placeholder="describe your use case…"
+                value={useCase}
+                onChange={e => { setUseCase(e.target.value); setScriptError('') }}
+                onKeyDown={e => e.key === 'Enter' && handleGenerateScript()}
+                className="min-w-0 flex-1 rounded-lg px-3 py-1.5 text-xs outline-none transition"
+                style={{
+                  backgroundColor: 'var(--surface-3)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-emphasis)',
+                }}
+              />
+              <button
+                onClick={() => handleGenerateScript()}
+                disabled={!useCase.trim() || generatingScript}
+                className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
+                style={{ backgroundColor: '#FF9300', color: '#000' }}
+              >
+                {generatingScript && useCase ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-black/30 border-t-black" />
+                    Generating…
+                  </span>
+                ) : 'Generate'}
+              </button>
+              <button
+                onClick={handleLucky}
+                disabled={generatingScript}
+                className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
+                style={{
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-secondary)',
+                  backgroundColor: 'var(--surface-3)',
+                }}
+              >
+                {generatingScript && !useCase ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--border-strong)] border-t-[var(--text-secondary)]" />
+                    Generating…
+                  </span>
+                ) : 'Surprise me'}
+              </button>
+            </div>
+
+            {scriptError && (
+              <p className="px-5 pb-2 text-xs" style={{ color: '#f87171' }}>
+                {scriptError}
+              </p>
+            )}
+
+            {/* Check Coverage — full-width primary action */}
+            <div className="p-5 pt-2">
+              <button
+                onClick={handleCheck}
+                disabled={wordCount === 0 || status === 'checking' || generatingScript}
+                className="flex w-full items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ backgroundColor: 'var(--text-emphasis)', color: 'var(--surface-0)' }}
+              >
+                {status === 'checking' ? (
+                  <>
+                    <span
+                      className="h-3.5 w-3.5 animate-spin rounded-full border-2"
+                      style={{ borderColor: 'rgba(0,0,0,0.2)', borderTopColor: 'var(--surface-0)' }}
+                    />
+                    Checking…
+                  </>
+                ) : (
+                  'Check Coverage'
+                )}
+              </button>
+            </div>
           </div>
-        )}
 
-        {/* Results */}
-        {status === 'done' && results && (
-          <div className="mt-5 space-y-4">
+          {/* Right: Results panel — always rendered */}
+          <div className="space-y-4">
 
-            {/* Summary */}
+            {/* Summary card */}
             <div
               className="rounded-2xl p-6"
               style={{
@@ -433,51 +447,91 @@ function ResearchPage() {
                 border: '1px solid var(--border-default)',
               }}
             >
-              <div className="flex items-center gap-8">
-                <div className="shrink-0 text-center">
-                  <div className={`text-5xl font-bold leading-none tabular-nums ${coverageColor}`}>
-                    {results.coveragePct.toFixed(1)}
-                    <span className="text-3xl font-semibold">%</span>
-                  </div>
-                  <div
-                    className="mt-1.5 text-xs font-semibold uppercase tracking-widest"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    covered
-                  </div>
+              {status === 'checking' ? (
+                <div className="flex items-center justify-center py-6">
+                  <span
+                    className="h-6 w-6 animate-spin rounded-full border-2"
+                    style={{ borderColor: 'var(--border-default)', borderTopColor: 'var(--text-emphasis)' }}
+                  />
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-8">
+                    <div className="shrink-0 text-center">
+                      {results ? (
+                        <div className={`text-5xl font-bold leading-none tabular-nums ${coverageColor}`}>
+                          {results.coveragePct.toFixed(1)}
+                          <span className="text-3xl font-semibold">%</span>
+                        </div>
+                      ) : (
+                        <div className="text-5xl font-bold leading-none" style={{ color: 'var(--text-muted)' }}>
+                          —
+                        </div>
+                      )}
+                      <div
+                        className="mt-1.5 text-xs font-semibold uppercase tracking-widest"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        covered
+                      </div>
+                    </div>
 
-                <div className="h-16 w-px shrink-0" style={{ backgroundColor: 'var(--border-subtle)' }} />
+                    <div className="h-16 w-px shrink-0" style={{ backgroundColor: 'var(--border-subtle)' }} />
 
-                <dl className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                  <Stat label="Total tokens" value={results.totalTokens.toLocaleString()} />
-                  <Stat label="Unique words" value={results.uniqueWordCount.toLocaleString()} />
-                  <Stat
-                    label="OOV words"
-                    value={results.oovWords.length.toLocaleString()}
-                    warn={results.oovWords.length > 0}
-                  />
-                  <Stat
-                    label="OOV tokens"
-                    value={results.oovTokenCount.toLocaleString()}
-                    warn={results.oovTokenCount > 0}
-                  />
-                </dl>
-              </div>
+                    <dl className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                      <Stat label="Total tokens" value={results ? results.totalTokens.toLocaleString() : '—'} />
+                      <Stat label="Unique words" value={results ? results.uniqueWordCount.toLocaleString() : '—'} />
+                      <Stat
+                        label="OOV words"
+                        value={results ? results.oovWords.length.toLocaleString() : '—'}
+                        warn={!!results && results.oovWords.length > 0}
+                      />
+                      <Stat
+                        label="OOV tokens"
+                        value={results ? results.oovTokenCount.toLocaleString() : '—'}
+                        warn={!!results && results.oovTokenCount > 0}
+                      />
+                    </dl>
+                  </div>
 
-              <div
-                className="mt-5 h-1.5 overflow-hidden rounded-full"
-                style={{ backgroundColor: 'var(--surface-4)' }}
-              >
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-                  style={{ width: `${results.coveragePct}%` }}
-                />
-              </div>
+                  <div
+                    className="mt-5 h-1.5 overflow-hidden rounded-full"
+                    style={{ backgroundColor: 'var(--surface-4)' }}
+                  >
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+                      style={{ width: results ? `${results.coveragePct}%` : '0%' }}
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* OOV list */}
-            {results.oovWords.length > 0 ? (
+            {/* OOV section */}
+            {status === 'error' ? (
+              <div
+                className="rounded-2xl px-4 py-3 text-sm"
+                style={{
+                  backgroundColor: 'rgba(248,113,113,0.1)',
+                  border: '1px solid rgba(248,113,113,0.3)',
+                  color: '#f87171',
+                }}
+              >
+                {error}
+              </div>
+            ) : status === 'checking' ? (
+              <div
+                className="flex items-center justify-center rounded-2xl px-6 py-10"
+                style={{
+                  backgroundColor: 'var(--surface-1)',
+                  border: '1px solid var(--border-default)',
+                }}
+              >
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Checking vocabulary…
+                </span>
+              </div>
+            ) : status === 'done' && results && results.oovWords.length > 0 ? (
               <div
                 className="overflow-hidden rounded-2xl"
                 style={{
@@ -540,7 +594,7 @@ function ResearchPage() {
                   ))}
                 </div>
               </div>
-            ) : (
+            ) : status === 'done' && results && results.oovWords.length === 0 ? (
               <div
                 className="rounded-2xl px-6 py-10 text-center"
                 style={{
@@ -555,9 +609,25 @@ function ResearchPage() {
                   Every word in your input is in Rime's dictionary.
                 </p>
               </div>
+            ) : (
+              // idle empty state
+              <div
+                className="rounded-2xl px-6 py-10 text-center"
+                style={{
+                  backgroundColor: 'var(--surface-1)',
+                  border: '1px solid var(--border-default)',
+                }}
+              >
+                <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                  Out-of-vocabulary words will appear here
+                </p>
+                <p className="mt-1 text-xs" style={{ color: 'var(--border-strong)' }}>
+                  Enter text and click Check Coverage to analyze
+                </p>
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
@@ -571,7 +641,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
       <dt style={{ color: 'var(--text-secondary)' }}>{label}</dt>
       <dd
         className="font-semibold tabular-nums"
-        style={{ color: warn ? '#fbbf24' : 'var(--text-emphasis)' }}
+        style={{ color: warn ? '#fbbf24' : value === '—' ? 'var(--text-muted)' : 'var(--text-emphasis)' }}
       >
         {value}
       </dd>
