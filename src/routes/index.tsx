@@ -30,14 +30,19 @@ Please reach out to Ramamurthy or Wojciechowski on the ISV partnerships team.`
 
 const wordSegmenter = new Intl.Segmenter('en', { granularity: 'word' })
 
+// Returns Map<displayWord, frequency> where displayWord preserves the
+// capitalisation of the first occurrence (e.g. "Pfizer", not "pfizer").
+// Deduplication is case-insensitive via a separate lowercase→display map.
 function parseWords(text: string): Map<string, number> {
   const freq = new Map<string, number>()
+  const seen = new Map<string, string>() // lowercase → first-seen display form
   for (const { segment, isWordLike } of wordSegmenter.segment(text)) {
     if (!isWordLike) continue
-    const word = segment.toLowerCase()
-    if (word.length >= 2 && /[a-z]/.test(word)) {
-      freq.set(word, (freq.get(word) ?? 0) + 1)
-    }
+    if (segment.length < 2 || !/[a-zA-Z]/.test(segment)) continue
+    const lower = segment.toLowerCase()
+    if (!seen.has(lower)) seen.set(lower, segment)
+    const display = seen.get(lower)!
+    freq.set(display, (freq.get(display) ?? 0) + 1)
   }
   return freq
 }
@@ -52,7 +57,9 @@ async function fetchOov(words: string[]): Promise<string[]> {
     body: JSON.stringify({ text: words.join(' ') }),
   })
   if (!res.ok) throw new Error(`Coverage API error ${res.status}: ${await res.text()}`)
-  return res.json()
+  const data = await res.json()
+  if (!Array.isArray(data)) throw new Error('Unexpected response from coverage API')
+  return data.filter((w): w is string => typeof w === 'string')
 }
 
 async function fetchWordAudio(word: string): Promise<string> {
@@ -151,7 +158,7 @@ function ResearchPage() {
       const oovList = await fetchOov(uniqueWords)
       const oovSet = new Set(oovList.map(w => w.toLowerCase()))
       const oovWords: OovWord[] = uniqueWords
-        .filter(w => oovSet.has(w))
+        .filter(w => oovSet.has(w.toLowerCase()))
         .map(w => ({ word: w, frequency: freq.get(w)! }))
         .sort((a, b) => b.frequency - a.frequency)
       const totalTokens = Array.from(freq.values()).reduce((s, v) => s + v, 0)
@@ -236,7 +243,7 @@ function ResearchPage() {
       const oovList = await fetchOov(uniqueWords)
       const oovSet = new Set(oovList.map(w => w.toLowerCase()))
       const oovWords: OovWord[] = uniqueWords
-        .filter(w => oovSet.has(w))
+        .filter(w => oovSet.has(w.toLowerCase()))
         .map(w => ({ word: w, frequency: freq.get(w)! }))
         .sort((a, b) => b.frequency - a.frequency)
       const totalTokens = Array.from(freq.values()).reduce((s, v) => s + v, 0)
