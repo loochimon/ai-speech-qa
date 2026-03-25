@@ -25,19 +25,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <nav
-          style={{
-            borderBottom: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--surface-1)',
-            padding: '0 1.5rem',
-            height: '52px',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <RimeLogo />
-        </nav>
-        {children}
+        <div style={{ display: 'flex', minHeight: '100vh' }}>
+          <Sidebar />
+          <main style={{ flex: 1, minWidth: 0 }}>
+            {children}
+          </main>
+        </div>
         <Scripts />
       </body>
     </html>
@@ -54,16 +47,305 @@ function RimeLogo() {
         <rect x="12" y="2.5" width="2" height="9" rx="1" fill="white" opacity="0.7" />
         <rect x="16" y="5" width="2" height="4" rx="1" fill="white" opacity="0.5" />
       </svg>
-      <span
-        style={{
-          color: 'white',
-          fontWeight: 600,
-          fontSize: '15px',
-          letterSpacing: '-0.01em',
-        }}
-      >
+      <span style={{ color: 'white', fontWeight: 600, fontSize: '15px', letterSpacing: '-0.01em' }}>
         rime
       </span>
     </div>
+  )
+}
+
+// ─── icons (simple SVG) ───────────────────────────────────────────────────────
+
+function IconDashboard() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="1" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7" />
+      <rect x="8" y="1" width="5" height="5" rx="1" fill="currentColor" opacity="0.7" />
+      <rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.7" />
+      <rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconWaveform() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="1" y="5" width="1.5" height="4" rx="0.75" fill="currentColor" opacity="0.7" />
+      <rect x="4" y="3" width="1.5" height="8" rx="0.75" fill="currentColor" opacity="0.7" />
+      <rect x="7" y="1" width="1.5" height="12" rx="0.75" fill="currentColor" />
+      <rect x="10" y="3" width="1.5" height="8" rx="0.75" fill="currentColor" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconMic() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="4.5" y="1" width="5" height="7" rx="2.5" fill="currentColor" opacity="0.7" />
+      <path d="M2 7c0 2.76 2.24 5 5 5s5-2.24 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+      <line x1="7" y1="12" x2="7" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconLibrary() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="1" y="2" width="3" height="10" rx="1" fill="currentColor" opacity="0.7" />
+      <rect x="5.5" y="2" width="3" height="10" rx="1" fill="currentColor" opacity="0.7" />
+      <rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconShield() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M7 1L2 3.5v4C2 10.5 4.2 12.8 7 13.5c2.8-.7 5-3 5-6v-4L7 1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconDocs() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
+      <line x1="4.5" y1="5" x2="9.5" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+      <line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+      <line x1="4.5" y1="10" x2="7.5" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconCreditCard() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
+      <line x1="1" y1="6" x2="13" y2="6" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconKey() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="5" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
+      <path d="M7.5 8.5L12 13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
+      <line x1="9" y1="11" x2="10.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  )
+}
+
+function IconTeam() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
+      <path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
+      <circle cx="10.5" cy="4" r="2" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
+      <path d="M10.5 8c1.7 0 3 1.3 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  )
+}
+
+// ─── sidebar ──────────────────────────────────────────────────────────────────
+
+type NavItem = {
+  label: string
+  icon?: React.ReactNode
+  active?: boolean
+  admin?: boolean
+  children?: NavItem[]
+  expanded?: boolean
+}
+
+function NavLink({
+  item,
+  depth = 0,
+}: {
+  item: NavItem
+  depth?: number
+}) {
+  const baseStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: depth === 0 ? '5px 8px' : '4px 8px 4px 28px',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: item.active ? 500 : 400,
+    color: item.active ? 'var(--text-emphasis)' : 'var(--text-secondary)',
+    backgroundColor: item.active ? 'var(--surface-3)' : 'transparent',
+    cursor: 'pointer',
+    textDecoration: 'none',
+    transition: 'background-color 0.1s, color 0.1s',
+    width: '100%',
+    border: 'none',
+    textAlign: 'left',
+  }
+
+  return (
+    <>
+      <button style={baseStyle}>
+        {item.icon && (
+          <span style={{ color: item.active ? 'var(--text-primary)' : 'var(--text-muted)', flexShrink: 0 }}>
+            {item.icon}
+          </span>
+        )}
+        <span style={{ flex: 1 }}>{item.label}</span>
+        {item.admin && (
+          <span style={{
+            fontSize: '9px',
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            border: '1px solid var(--border-default)',
+            borderRadius: '3px',
+            padding: '1px 4px',
+            flexShrink: 0,
+          }}>
+            admin
+          </span>
+        )}
+      </button>
+      {item.children && item.expanded && (
+        <div>
+          {item.children.map(child => (
+            <NavLink key={child.label} item={child} depth={1} />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+function NavSection({ label, items }: { label: string; items: NavItem[] }) {
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <div
+        style={{
+          fontSize: '10px',
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          padding: '0 8px',
+          marginBottom: '4px',
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+        {items.map(item => (
+          <NavLink key={item.label} item={item} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Sidebar() {
+  return (
+    <aside
+      className="app-sidebar"
+      style={{
+        width: '200px',
+        flexShrink: 0,
+        backgroundColor: 'var(--surface-1)',
+        borderRight: '1px solid var(--border-subtle)',
+        flexDirection: 'column',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        overflow: 'hidden auto',
+      }}
+    >
+      {/* Logo */}
+      <div
+        style={{
+          padding: '16px 16px 12px',
+          borderBottom: '1px solid var(--border-subtle)',
+          marginBottom: '16px',
+        }}
+      >
+        <RimeLogo />
+      </div>
+
+      <div style={{ padding: '0 8px', flex: 1 }}>
+        <NavSection
+          label="Platform"
+          items={[
+            { label: 'Dashboard', icon: <IconDashboard /> },
+            { label: 'Generate Audio', icon: <IconWaveform /> },
+            { label: 'Talk to Rime', icon: <IconMic /> },
+            { label: 'Voice Library', icon: <IconLibrary /> },
+            {
+              label: 'Speech QA',
+              icon: <IconShield />,
+              expanded: true,
+              children: [
+                { label: 'Research', active: true },
+                { label: 'Monitoring' },
+                { label: 'Corrections', admin: true },
+              ],
+            },
+          ]}
+        />
+      </div>
+
+      {/* User */}
+      <div
+        style={{
+          padding: '12px 16px',
+          borderTop: '1px solid var(--border-subtle)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <div
+            style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              backgroundColor: '#FF9300',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '11px',
+              fontWeight: 700,
+              color: '#000',
+              flexShrink: 0,
+            }}
+          >
+            P
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-emphasis)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              patrick@rime.ai
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Rime.ai</div>
+          </div>
+        </div>
+        <button
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            padding: '2px',
+            display: 'flex',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="3" r="1.2" fill="currentColor" />
+            <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+            <circle cx="7" cy="11" r="1.2" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+    </aside>
   )
 }
