@@ -12,6 +12,13 @@ const config = defineConfig({
     fs: {
       allow: ['..', '../../../..'],
     },
+    proxy: {
+      '/api/voices': {
+        target: 'https://users.rime.ai',
+        changeOrigin: true,
+        rewrite: () => '/data/voices/voice_details.json',
+      },
+    },
   },
   plugins: [
     devtools(),

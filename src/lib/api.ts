@@ -14,10 +14,10 @@ export interface VoiceEntry {
   flagship: boolean
 }
 
-const VOICE_DETAILS_URL = 'https://users.rime.ai/data/voices/voice_details.json'
+const VOICE_DETAILS_URL = '/api/voices'
 
 /**
- * Fetches all mistv2 English voices from the Rime voice catalogue.
+ * Fetches all mistv2 voices from the Rime voice catalogue.
  * Flagship voices are sorted first, then alphabetically by speaker name.
  */
 export async function fetchVoices(): Promise<VoiceEntry[]> {
@@ -25,7 +25,7 @@ export async function fetchVoices(): Promise<VoiceEntry[]> {
   if (!res.ok) throw new Error(`Failed to fetch voices: ${res.status}`)
   const all: VoiceEntry[] = await res.json()
   return all
-    .filter(v => v.modelId === 'mistv2' && v.lang === 'eng')
+    .filter(v => v.modelId === 'mistv2')
     .sort((a, b) => {
       if (a.flagship && !b.flagship) return -1
       if (!a.flagship && b.flagship) return 1
@@ -213,7 +213,7 @@ export function ipaToRime(ipa: string): string {
     let hit = false
     for (const [seq, rim] of digraphs) {
       if (s.startsWith(seq, idx)) {
-        if (RIME_VOWELS.has(rim) && pendingStress) { out.push(pendingStress); pendingStress = '' }
+        if (RIME_VOWELS.has(rim)) { out.push(pendingStress || '0'); pendingStress = '' }
         out.push(rim)
         idx += seq.length
         hit = true
@@ -225,7 +225,7 @@ export function ipaToRime(ipa: string): string {
     // Single char
     const rim = singles[ch]
     if (rim) {
-      if (RIME_VOWELS.has(rim) && pendingStress) { out.push(pendingStress); pendingStress = '' }
+      if (RIME_VOWELS.has(rim)) { out.push(pendingStress || '0'); pendingStress = '' }
       out.push(rim)
     }
     // Unknown chars (combining diacritics, etc.) are silently dropped
@@ -310,7 +310,7 @@ Example: {"Pfizer": "ˈfaɪzər", "Zoloft": "ˈzoʊlɑft", "Lisinopril": "lɪˈs
  * Pass the bare Rime phoneme sequence (e.g. "f1Yzxr") — this function wraps it
  * in `{}` before sending to Rime TTS.
  */
-export async function fetchPhoneticAudio(phonetic: string, apiKey: string, speaker = 'lagoon'): Promise<string> {
+export async function fetchPhoneticAudio(text: string, apiKey: string, speaker = 'lagoon'): Promise<string> {
   const res = await fetch(RIME_TTS_URL, {
     method: 'POST',
     headers: {
@@ -319,7 +319,7 @@ export async function fetchPhoneticAudio(phonetic: string, apiKey: string, speak
       Accept: 'audio/mp3',
     },
     body: JSON.stringify({
-      text: `{${phonetic}}`,
+      text,
       speaker,
       modelId: 'mistv2',
       phonemizeBetweenBrackets: true,
