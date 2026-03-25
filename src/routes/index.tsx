@@ -23,16 +23,78 @@ const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string
 const DEFAULT_VOICE = 'lagoon'
 
 const RANDOM_USE_CASES = [
+  // Healthcare & pharma
   'pharmacy prescription refill and drug interaction check',
-  'airline rebooking after a flight cancellation',
   'hospital patient intake and insurance verification',
-  'telecom troubleshooting a fiber outage',
-  'wealth management portfolio review call',
-  'automotive dealership scheduling a recall repair',
-  'SaaS technical support for an API integration issue',
-  'utility company handling a billing dispute',
-  'insurance claim intake after a car accident',
   'medical device company fielding a compliance question',
+  'oncology clinic scheduling a chemotherapy infusion appointment',
+  'mental health crisis line de-escalation and referral',
+  'dental office handling an emergency toothache after hours',
+  'optometry practice confirming a contact lens prescription',
+  'home health aide dispatch for a post-surgical patient',
+  'pharmaceutical rep detailing a new formulary addition to a physician',
+  'urgent care clinic triaging a patient with chest pain symptoms',
+
+  // Financial services
+  'wealth management portfolio review call',
+  'insurance claim intake after a car accident',
+  'mortgage lender walking a first-time buyer through loan options',
+  'credit card fraud investigation and card replacement',
+  'student loan servicer explaining income-driven repayment options',
+  'cryptocurrency exchange verifying identity for a large withdrawal',
+  'small business bank resolving an ACH payment failure',
+  'tax preparation service handling an audit notice inquiry',
+  'annuity provider explaining surrender charges to a retiree',
+  'venture capital firm conducting an initial LP onboarding call',
+
+  // Telecom & tech
+  'telecom troubleshooting a fiber outage',
+  'SaaS technical support for an API integration issue',
+  'cloud provider handling a production database outage escalation',
+  'cybersecurity firm notifying a client of a breach and remediation steps',
+  'ISP walking a customer through router firmware update',
+  'enterprise software vendor negotiating a renewal contract',
+  'IoT platform supporting a developer integrating a smart sensor',
+  'data center coordinating emergency power failover procedures',
+
+  // Travel & logistics
+  'airline rebooking after a flight cancellation',
+  'hotel concierge arranging accessible room accommodations',
+  'car rental company handling a vehicle breakdown mid-trip',
+  'freight brokerage tracking a delayed LTL shipment',
+  'cruise line handling a medical evacuation from a ship',
+  'corporate travel agent managing a last-minute international visa issue',
+  'rideshare driver support resolving a disputed fare',
+
+  // Utilities & energy
+  'utility company handling a billing dispute',
+  'solar installer explaining net metering credits to a homeowner',
+  'natural gas company responding to a reported leak',
+  'EV charging network helping a driver with a failed charge session',
+  'water authority notifying a business of a boil-water advisory',
+
+  // Automotive & manufacturing
+  'automotive dealership scheduling a recall repair',
+  'heavy equipment manufacturer assisting a technician with hydraulic diagnostics',
+  'auto insurance adjuster appraising hail damage on a fleet vehicle',
+  'tire retailer handling a road hazard warranty claim',
+
+  // Retail & e-commerce
+  'e-commerce retailer processing a high-value return fraud investigation',
+  'luxury brand authenticating a product and arranging a repair',
+  'grocery delivery service resolving a substitution complaint',
+  'marketplace seller support disputing a buyer protection claim',
+
+  // Government & public services
+  'DMV agent walking a caller through commercial driver license renewal',
+  'veterans affairs benefits specialist explaining disability rating appeal',
+  'unemployment office handling an overpayment recoupment notice',
+  'city permitting office clarifying zoning requirements for a renovation',
+
+  // Education & non-profit
+  'university financial aid office resolving a missing document hold',
+  'K-12 school district special education coordinator arranging an IEP meeting',
+  'non-profit disaster relief intake registering displaced families',
 ]
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -61,6 +123,7 @@ interface HistoryEntry {
   results: Results
   phonetics: Record<string, PhoneticResult>
   submittedWords: string[]
+  flaggedWords: string[]
   voice: string
   timestamp: Date
 }
@@ -86,7 +149,7 @@ function ResearchPage() {
   const [phoneticsLoading, setPhonleticsLoading] = useState(false)
 
   const [submittedWords, setSubmittedWords] = useState<Set<string>>(new Set())
-  const [correctionWord, setCorrectionWord] = useState<string | null>(null)
+  const [flaggedWords, setFlaggedWords] = useState<Set<string>>(new Set())
 
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -177,6 +240,7 @@ function ResearchPage() {
     setPhonetics({})
     setPhonleticsLoading(false)
     setSubmittedWords(new Set())
+    setFlaggedWords(new Set())
     try {
       const uniqueWords = Array.from(freq.keys())
       const oovList = await fetchOov(uniqueWords, RIME_API_KEY)
@@ -196,6 +260,7 @@ function ResearchPage() {
       const entryLabel = label?.trim() ||
         textToCheck.split('\n').find(l => l.trim())?.trim().slice(0, 72) ||
         'Untitled'
+      setFlaggedWords(new Set())
       setHistory(prev => [{
         id: crypto.randomUUID(),
         label: entryLabel,
@@ -203,6 +268,7 @@ function ResearchPage() {
         results: newResults,
         phonetics: {},
         submittedWords: [],
+        flaggedWords: [],
         voice: selectedVoice,
         timestamp: new Date(),
       }, ...prev])
@@ -296,6 +362,7 @@ function ResearchPage() {
     setResults(entry.results)
     setPhonetics(entry.phonetics)
     setSubmittedWords(new Set(entry.submittedWords))
+    setFlaggedWords(new Set(entry.flaggedWords ?? []))
     setSelectedVoice(entry.voice)
     // Clear audio cache so the restored voice is used for fresh playback
     audioCache.current.clear()
@@ -308,16 +375,58 @@ function ResearchPage() {
 
   // ── correction requests ──────────────────────────────────────────────────────
 
-  const handleSubmitCorrection = useCallback((word: string) => {
-    setSubmittedWords(prev => new Set([...prev, word]))
+  // Toggle a word's "flagged for correction" state (before submission)
+  const handleFlag = useCallback((word: string) => {
+    setFlaggedWords(prev => {
+      const next = new Set(prev)
+      if (next.has(word)) { next.delete(word) } else { next.add(word) }
+      return next
+    })
     setHistory(h => {
       if (h.length === 0) return h
       const [latest, ...rest] = h
-      return [{ ...latest, submittedWords: [...new Set([...latest.submittedWords, word])] }, ...rest]
+      const cur = new Set(latest.flaggedWords ?? [])
+      if (cur.has(word)) { cur.delete(word) } else { cur.add(word) }
+      return [{ ...latest, flaggedWords: [...cur] }, ...rest]
     })
-    setCorrectionWord(null)
-    addToast(`Correction requested for "${word}" — the annotation team will be notified`)
-  }, [addToast])
+  }, [])
+
+  // Submit all flagged words for correction at once
+  const handleSubmitFlagged = useCallback(() => {
+    const toSubmit = [...flaggedWords]
+    if (toSubmit.length === 0) return
+    setSubmittedWords(prev => new Set([...prev, ...toSubmit]))
+    setFlaggedWords(new Set())
+    setHistory(h => {
+      if (h.length === 0) return h
+      const [latest, ...rest] = h
+      return [{
+        ...latest,
+        submittedWords: [...new Set([...latest.submittedWords, ...toSubmit])],
+        flaggedWords: [],
+      }, ...rest]
+    })
+    addToast(`Correction requested for ${toSubmit.length} word${toSubmit.length !== 1 ? 's' : ''} — the annotation team will be notified`)
+  }, [flaggedWords, addToast])
+
+  // Cancel a submitted correction (returns word to unflagged state)
+  const handleCancelFix = useCallback((word: string) => {
+    setSubmittedWords(prev => { const next = new Set(prev); next.delete(word); return next })
+    setHistory(h => {
+      if (h.length === 0) return h
+      const [latest, ...rest] = h
+      return [{ ...latest, submittedWords: latest.submittedWords.filter(w => w !== word) }, ...rest]
+    })
+  }, [])
+
+  const handleCancelAllFixes = useCallback(() => {
+    setSubmittedWords(new Set())
+    setHistory(h => {
+      if (h.length === 0) return h
+      const [latest, ...rest] = h
+      return [{ ...latest, submittedWords: [] }, ...rest]
+    })
+  }, [])
 
   // ── exports ─────────────────────────────────────────────────────────────────
 
@@ -327,10 +436,13 @@ function ResearchPage() {
   const handleDownloadCsv = useCallback(() => {
     if (!results || results.oovWords.length === 0) return
     const rows = [
-      ['Word', 'Frequency', 'IPA Pronunciation', 'Rime Phonetic'],
+      ['Word', 'Frequency', 'IPA Pronunciation', 'Rime Phonetic', 'Status'],
       ...results.oovWords.map(({ word, frequency }) => {
         const p = phonetics[word]
-        return [word, String(frequency), p?.ipa ?? '', p ? `{${p.rime}}` : '']
+        const status = submittedWords.has(word) ? 'Fix requested'
+          : flaggedWords.has(word) ? 'Flagged'
+          : 'Not in dictionary'
+        return [word, String(frequency), p?.ipa ?? '', p ? `{${p.rime}}` : '', status]
       }),
     ]
     const csv = rows
@@ -343,133 +455,253 @@ function ResearchPage() {
     a.download = 'oov-words.csv'
     a.click()
     URL.revokeObjectURL(url)
-  }, [results, phonetics])
+  }, [results, phonetics, submittedWords, flaggedWords])
 
   const handleExportPdf = useCallback(() => {
     if (!results) return
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const W = 210
-    const margin = 15
+    const H = doc.internal.pageSize.getHeight()
+    const margin = 16
+    const contentW = W - 2 * margin
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const pct = results.coveragePct
+    const [cr, cg, cb] = pct >= 95 ? [22, 163, 74] : pct >= 80 ? [180, 83, 9] : [185, 28, 28]
+    const oovCount = results.oovWords.length
+    const requestedCount = results.oovWords.filter(w => submittedWords.has(w.word)).length
+    const flaggedCount = results.oovWords.filter(w => flaggedWords.has(w.word)).length
 
-    // ── Header bar ──
-    doc.setFillColor(22, 22, 22)
-    doc.rect(0, 0, W, 26, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(13)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Rime SpeechQA', margin, 11)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(180, 180, 180)
-    doc.text('Research Report', margin, 18)
-    doc.text(
-      new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      W - margin, 18, { align: 'right' }
-    )
+    // ── helpers ──────────────────────────────────────────────────────────────
+    const addFooter = (pageNum: number, totalPages: number) => {
+      doc.setTextColor(180, 180, 180)
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.line(margin, H - 14, W - margin, H - 14)
+      doc.text('Rime SpeechQA  ·  docs.rime.ai', margin, H - 9)
+      doc.text(`Page ${pageNum} of ${totalPages}`, W - margin, H - 9, { align: 'right' })
+      doc.setDrawColor(220, 220, 220)
+    }
 
-    let y = 36
+    const addPageHeader = () => {
+      doc.setFillColor(18, 18, 18)
+      doc.rect(0, 0, W, 22, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Rime SpeechQA', margin, 10)
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(160, 160, 160)
+      doc.text('Coverage Report', margin, 17)
+      doc.text(`Voice: ${selectedVoice}  ·  ${dateStr}`, W - margin, 17, { align: 'right' })
+    }
 
-    // ── Label ──
-    const label = useCase.trim() ||
-      text.split('\n').find(l => l.trim())?.trim().slice(0, 80) ||
-      'Untitled'
-    doc.setTextColor(120, 120, 120)
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 1 — EXECUTIVE SUMMARY
+    // ════════════════════════════════════════════════════════════════════════
+    addPageHeader()
+    let y = 32
+
+    // ── Use case label ──
+    const label = useCase.trim() || text.trim().split('\n').find(l => l.trim())?.slice(0, 100) || 'Untitled'
+    doc.setTextColor(100, 100, 100)
     doc.setFontSize(7)
     doc.setFont('helvetica', 'normal')
     doc.text('USE CASE', margin, y)
-    y += 4
-    doc.setTextColor(30, 30, 30)
-    doc.setFontSize(11)
+    y += 4.5
+    doc.setTextColor(20, 20, 20)
+    doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
-    doc.text(label, margin, y)
-    y += 10
+    const labelLines = doc.splitTextToSize(label, contentW) as string[]
+    doc.text(labelLines, margin, y)
+    y += labelLines.length * 6 + 4
 
-    // ── Coverage score ──
-    const pct = results.coveragePct
-    const [r, g, b] = pct >= 95 ? [52, 211, 153] : pct >= 80 ? [217, 119, 6] : [220, 38, 38]
-    doc.setTextColor(r, g, b)
-    doc.setFontSize(40)
+    // ── Verdict banner ──
+    const verdictText = pct >= 95
+      ? 'Production ready — dictionary coverage meets the recommended threshold.'
+      : pct >= 80
+      ? 'Review recommended — most words are covered, but a few gaps may affect quality.'
+      : 'Needs attention — significant gaps in dictionary coverage detected.'
+    const [vr, vg, vb] = pct >= 95 ? [240, 253, 244] : pct >= 80 ? [255, 251, 235] : [254, 242, 242]
+    const [tbr, tbg, tbb] = pct >= 95 ? [21, 128, 61] : pct >= 80 ? [146, 64, 14] : [153, 27, 27]
+    doc.setFillColor(vr, vg, vb)
+    doc.roundedRect(margin, y, contentW, 11, 2, 2, 'F')
+    doc.setTextColor(tbr, tbg, tbb)
+    doc.setFontSize(8.5)
     doc.setFont('helvetica', 'bold')
-    doc.text(`${pct.toFixed(1)}%`, margin, y + 12)
-    doc.setTextColor(120, 120, 120)
+    doc.text(verdictText, margin + 4, y + 7.5)
+    y += 17
+
+    // ── Coverage % + progress bar ──
+    doc.setTextColor(cr, cg, cb)
+    doc.setFontSize(48)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${pct.toFixed(1)}%`, margin, y + 14)
+    doc.setTextColor(110, 110, 110)
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text('coverage', margin + 34, y + 12)
-    y += 22
+    doc.text('dictionary coverage', margin + 44, y + 10)
+    // Progress bar
+    const barY = y + 13
+    doc.setFillColor(230, 230, 230)
+    doc.roundedRect(margin + 44, barY, contentW - 44, 4, 2, 2, 'F')
+    doc.setFillColor(cr, cg, cb)
+    doc.roundedRect(margin + 44, barY, (contentW - 44) * (pct / 100), 4, 2, 2, 'F')
+    y += 24
 
-    // ── Stats ──
-    const stats = [
+    // ── Stats grid ──
+    const stats: [string, string][] = [
       ['Total tokens', results.totalTokens.toLocaleString()],
       ['Unique words', results.uniqueWordCount.toLocaleString()],
-      ['OOV words', results.oovWords.length.toLocaleString()],
+      ['OOV words', oovCount.toLocaleString()],
       ['OOV tokens', results.oovTokenCount.toLocaleString()],
     ]
-    const colW = (W - 2 * margin) / 4
+    const colW = contentW / 4
+    doc.setDrawColor(235, 235, 235)
     stats.forEach(([lbl, val], i) => {
       const x = margin + i * colW
-      doc.setTextColor(140, 140, 140)
+      if (i > 0) doc.line(x, y, x, y + 12)
+      doc.setTextColor(130, 130, 130)
       doc.setFontSize(7)
-      doc.text(lbl.toUpperCase(), x, y)
-      doc.setTextColor(30, 30, 30)
-      doc.setFontSize(13)
+      doc.setFont('helvetica', 'normal')
+      doc.text(lbl.toUpperCase(), x + (i === 0 ? 0 : 4), y + 3)
+      const isOov = i >= 2
+      doc.setTextColor(isOov && Number(val) > 0 ? cr : 20, isOov && Number(val) > 0 ? cg : 20, isOov && Number(val) > 0 ? cb : 20)
+      doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text(val, x, y + 6)
+      doc.text(val, x + (i === 0 ? 0 : 4), y + 11)
       doc.setFont('helvetica', 'normal')
     })
-    y += 18
+    y += 20
+
+    // ── Narrative summary ──
+    doc.setDrawColor(220, 220, 220)
+    doc.line(margin, y, W - margin, y)
+    y += 7
+    const inVocab = results.uniqueWordCount - oovCount
+    const narrativeParts: string[] = [
+      `This ${useCase ? `"${label}" ` : ''}script contains ${results.totalTokens.toLocaleString()} total tokens across ${results.uniqueWordCount.toLocaleString()} unique words.`,
+      oovCount === 0
+        ? `Every word is present in Rime's dictionary — no action required before deployment.`
+        : `${oovCount.toLocaleString()} word${oovCount !== 1 ? 's' : ''} (${(100 - pct).toFixed(1)}% gap) ${oovCount !== 1 ? 'are' : 'is'} not yet in Rime's dictionary, accounting for ${results.oovTokenCount.toLocaleString()} token occurrence${results.oovTokenCount !== 1 ? 's' : ''}.`,
+    ]
+    if (oovCount > 0 && (requestedCount > 0 || flaggedCount > 0)) {
+      const parts: string[] = []
+      if (requestedCount > 0) parts.push(`${requestedCount} fix${requestedCount !== 1 ? 'es' : ''} submitted`)
+      if (flaggedCount > 0) parts.push(`${flaggedCount} flagged`)
+      narrativeParts.push(`${parts.join(', ')}.`)
+    }
+    const narrative = narrativeParts.join(' ')
+    const narrativeLines = doc.splitTextToSize(narrative, contentW) as string[]
+    doc.setTextColor(50, 50, 50)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(narrativeLines, margin, y)
+    y += narrativeLines.length * 5.5 + 8
 
     // ── OOV table ──
-    if (results.oovWords.length > 0) {
-      doc.setDrawColor(220, 220, 220)
-      doc.line(margin, y, W - margin, y)
-      y += 6
-      doc.setTextColor(30, 30, 30)
+    if (oovCount > 0) {
+      doc.setTextColor(20, 20, 20)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.text('Out-of-vocabulary words', margin, y)
-      y += 4
+      y += 6
 
       autoTable(doc, {
         startY: y,
         margin: { left: margin, right: margin },
-        head: [['Word', 'Freq', 'IPA Pronunciation', 'Rime Phonetic', 'Status']],
+        tableWidth: contentW,
+        head: [['Word', 'Freq', 'Rime Phonetic', 'Status']],
         body: results.oovWords.map(({ word, frequency }) => {
           const p = phonetics[word]
-          const submitted = submittedWords.has(word)
+          const status = submittedWords.has(word) ? 'Fix requested'
+            : flaggedWords.has(word) ? 'Flagged'
+            : 'Not in dictionary'
           return [
             word,
-            frequency.toLocaleString(),
-            p ? `/${p.ipa}/` : '—',
+            `x${frequency.toLocaleString()}`,
             p ? `{${p.rime}}` : '—',
-            submitted ? 'Requested' : 'Pending',
+            status,
           ]
         }),
-        styles: { fontSize: 8.5, cellPadding: 2.5 },
-        headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [248, 248, 248] },
+        styles: { fontSize: 8.5, cellPadding: 3 },
+        headStyles: { fillColor: [25, 25, 25], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
         columnStyles: {
-          0: { fontStyle: 'bold' },
-          4: { textColor: [120, 120, 120] },
+          0: { fontStyle: 'bold', cellWidth: 38 },
+          1: { cellWidth: 14, halign: 'right', textColor: [120, 120, 120] },
+          2: { cellWidth: 90 },
+          3: { cellWidth: 36, halign: 'center' },
+        },
+        didParseCell: (data) => {
+          if (data.column.index === 3 && data.section === 'body') {
+            const val = data.cell.raw as string
+            data.cell.styles.textColor = val === 'Fix requested' || val === 'Flagged'
+              ? [22, 163, 74] : [120, 120, 120]
+            data.cell.styles.fontStyle = 'bold'
+          }
         },
       })
     } else {
-      doc.setFillColor(235, 253, 245)
-      doc.roundedRect(margin, y, W - 2 * margin, 16, 3, 3, 'F')
-      doc.setTextColor(22, 163, 74)
+      doc.setFillColor(240, 253, 244)
+      doc.roundedRect(margin, y, contentW, 16, 3, 3, 'F')
+      doc.setTextColor(21, 128, 61)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.text('Full coverage — every word is in the Rime dictionary', W / 2, y + 10, { align: 'center' })
     }
 
-    // ── Footer ──
-    const pageH = doc.internal.pageSize.getHeight()
-    doc.setTextColor(180, 180, 180)
-    doc.setFontSize(7)
+    // ════════════════════════════════════════════════════════════════════════
+    // PAGE 2 — FULL INPUT TEXT
+    // ════════════════════════════════════════════════════════════════════════
+    doc.addPage()
+    addPageHeader()
+    y = 32
+
+    doc.setTextColor(20, 20, 20)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Analyzed Script', margin, y)
+    doc.setTextColor(120, 120, 120)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text('Generated by Rime SpeechQA · docs.rime.ai', W / 2, pageH - 8, { align: 'center' })
+    doc.text(`${results.totalTokens.toLocaleString()} tokens · ${results.uniqueWordCount.toLocaleString()} unique words · voice: ${selectedVoice}`, margin, y + 6)
+    y += 14
+
+    doc.setDrawColor(220, 220, 220)
+    doc.line(margin, y, W - margin, y)
+    y += 7
+
+    // Render full text with page breaks
+    const inputLines = doc.splitTextToSize(text.trim(), contentW) as string[]
+    doc.setTextColor(35, 35, 35)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    const lineH = 5.2
+    const pageBottomY = H - 20
+    let pageNum = 2
+
+    for (const line of inputLines) {
+      if (y + lineH > pageBottomY) {
+        addFooter(pageNum, 3)
+        doc.addPage()
+        addPageHeader()
+        pageNum++
+        y = 32
+      }
+      doc.text(line, margin, y)
+      y += lineH
+    }
+
+    // Add footers
+    const totalPages = doc.getNumberOfPages()
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p)
+      addFooter(p, totalPages)
+    }
 
     doc.save(`rime-speechqa-${new Date().toISOString().slice(0, 10)}.pdf`)
-  }, [results, phonetics, submittedWords, useCase, text])
+  }, [results, phonetics, submittedWords, flaggedWords, useCase, text])
 
   // ── derived ─────────────────────────────────────────────────────────────────
 
@@ -759,15 +991,50 @@ function ResearchPage() {
               {results.oovWords.length > 0 ? (
                 <div className="overflow-hidden rounded-2xl" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
                   <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-emphasis)' }}>
-                      Out-of-vocabulary words
-                      <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
-                        {results.oovWords.length}
-                      </span>
-                    </h2>
-                    <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-                      Hear Rime's current attempt, or play the IPA-guided suggestion. Request a correction to have the annotation team add it to the dictionary.
-                    </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-emphasis)' }}>
+                          Out-of-vocabulary words
+                          <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
+                            {results.oovWords.length}
+                          </span>
+                        </h2>
+                        {flaggedWords.size > 0 && (
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {flaggedWords.size} flagged
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <a
+                          href="https://docs.rime.ai/docs/custom-pronunciation#the-rime-phonetic-alphabet"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs transition hover:opacity-70"
+                          style={{ color: 'var(--text-muted)', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                        >
+                          Phonetic guide ↗
+                        </a>
+                        {results.oovWords.some(w => submittedWords.has(w.word)) && (
+                          <button
+                            onClick={handleCancelAllFixes}
+                            className="rounded-lg px-2.5 py-1 text-xs font-medium transition hover:opacity-80"
+                            style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', backgroundColor: 'transparent', whiteSpace: 'nowrap' }}
+                          >
+                            Cancel all
+                          </button>
+                        )}
+                        {flaggedWords.size > 0 && (
+                          <button
+                            onClick={handleSubmitFlagged}
+                            className="rounded-lg px-2.5 py-1 text-xs font-medium transition hover:opacity-80"
+                            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-3)', whiteSpace: 'nowrap' }}
+                          >
+                            Submit {flaggedWords.size} correction{flaggedWords.size !== 1 ? 's' : ''}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div>
                     {results.oovWords.map(({ word, frequency }, i) => (
@@ -783,7 +1050,10 @@ function ResearchPage() {
                         onPlay={handlePlay}
                         selectedVoice={selectedVoice}
                         isSubmitted={submittedWords.has(word)}
-                        onRequestFix={word => setCorrectionWord(word)}
+                        isFlagged={flaggedWords.has(word)}
+                        onFlag={handleFlag}
+                        onCancelFix={handleCancelFix}
+                        addToast={addToast}
                       />
                     ))}
                   </div>
@@ -818,23 +1088,31 @@ function ResearchPage() {
 
       </div>
 
-      {/* ── Correction modal ── */}
-      {correctionWord && (
-        <CorrectionModal
-          word={correctionWord}
-          phonetic={phonetics[correctionWord]}
-          onClose={() => setCorrectionWord(null)}
-          onSubmit={() => handleSubmitCorrection(correctionWord)}
-        />
-      )}
 
-      {/* ── Toasts ── */}
+{/* ── Toasts ── */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   )
 }
 
 // ─── VoicePicker ──────────────────────────────────────────────────────────────
+
+function uniqueVals(voices: VoiceEntry[], key: keyof VoiceEntry): string[] {
+  const vals = new Set<string>()
+  for (const v of voices) {
+    const val = v[key]
+    if (Array.isArray(val)) {
+      for (const item of val) {
+        for (const part of item.split(',').map((s: string) => s.trim())) {
+          if (part) vals.add(part)
+        }
+      }
+    } else if (typeof val === 'string' && val) {
+      vals.add(val)
+    }
+  }
+  return [...vals].sort()
+}
 
 function VoicePicker({
   voices,
@@ -849,6 +1127,11 @@ function VoicePicker({
   const [search, setSearch] = useState('')
   const [genderFilter, setGenderFilter] = useState<'all' | 'Male' | 'Female' | 'Non-binary'>('all')
   const [flagshipOnly, setFlagshipOnly] = useState(false)
+  const [langFilter, setLangFilter] = useState('')
+  const [ageFilter, setAgeFilter] = useState('')
+  const [dialectFilter, setDialectFilter] = useState('')
+  const [demographicFilter, setDemographicFilter] = useState('')
+  const [genreFilter, setGenreFilter] = useState('')
   const ref = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -867,26 +1150,60 @@ function VoicePicker({
     }
   }, [open])
 
+  const opts = useMemo(() => ({
+    language: uniqueVals(voices, 'language'),
+    age: uniqueVals(voices, 'age'),
+    dialect: uniqueVals(voices, 'dialect'),
+    demographic: uniqueVals(voices, 'demographic'),
+    genre: uniqueVals(voices, 'genre'),
+  }), [voices])
+
   const filtered = useMemo(() => {
     return voices.filter(v => {
       if (genderFilter !== 'all' && v.gender !== genderFilter) return false
       if (flagshipOnly && !v.flagship) return false
+      if (langFilter && v.language !== langFilter) return false
+      if (ageFilter && v.age !== ageFilter) return false
+      if (dialectFilter && v.dialect !== dialectFilter) return false
+      if (demographicFilter && v.demographic !== demographicFilter) return false
+      if (genreFilter) {
+        const genres = v.genre.flatMap(g => g.split(',').map(s => s.trim()))
+        if (!genres.includes(genreFilter)) return false
+      }
       if (search) {
         const q = search.toLowerCase()
-        return v.speaker.toLowerCase().includes(q) || v.dialect.toLowerCase().includes(q) || v.demographic.toLowerCase().includes(q)
+        return (
+          v.speaker.toLowerCase().includes(q) ||
+          v.dialect.toLowerCase().includes(q) ||
+          v.demographic.toLowerCase().includes(q) ||
+          v.language.toLowerCase().includes(q)
+        )
       }
       return true
     })
-  }, [voices, genderFilter, flagshipOnly, search])
+  }, [voices, genderFilter, flagshipOnly, langFilter, ageFilter, dialectFilter, demographicFilter, genreFilter, search])
 
   const selectedEntry = voices.find(v => v.speaker === selected)
+  const hasFilters = langFilter || ageFilter || dialectFilter || demographicFilter || genreFilter || flagshipOnly || genderFilter !== 'all'
 
   const genderOptions: { value: typeof genderFilter; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'Male', label: 'Male' },
     { value: 'Female', label: 'Female' },
-    { value: 'Non-binary', label: 'Non-binary' },
+    { value: 'Non-binary', label: 'NB' },
   ]
+
+  const selectStyle: React.CSSProperties = {
+    backgroundColor: 'var(--surface-3)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-secondary)',
+    borderRadius: '6px',
+    padding: '2px 4px',
+    fontSize: '11px',
+    outline: 'none',
+    minWidth: 0,
+    flex: '1 1 0',
+  }
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -904,7 +1221,6 @@ function VoicePicker({
           <rect x="7.5" y="2.5" width="1.5" height="6" rx="0.75" fill="currentColor" opacity="0.7" />
         </svg>
         <span className="truncate flex-1">{selected}</span>
-        {selectedEntry?.flagship && <span style={{ color: '#fbbf24', fontSize: '9px' }}>★</span>}
         {/* Chevron */}
         <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
           <path d={open ? 'M1.5 6L4.5 3L7.5 6' : 'M1.5 3L4.5 6L7.5 3'} stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -918,7 +1234,7 @@ function VoicePicker({
             bottom: 'calc(100% + 6px)',
             left: 0,
             zIndex: 100,
-            width: '300px',
+            width: '360px',
             backgroundColor: 'var(--surface-2)',
             border: '1px solid var(--border-default)',
             borderRadius: '14px',
@@ -940,7 +1256,7 @@ function VoicePicker({
                 ref={searchRef}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name or accent…"
+                placeholder="Search by name, accent, language…"
                 className="flex-1 bg-transparent text-xs outline-none"
                 style={{ color: 'var(--text-emphasis)' }}
               />
@@ -954,7 +1270,7 @@ function VoicePicker({
             </div>
           </div>
 
-          {/* Filters */}
+          {/* Gender + flagship row */}
           <div className="flex items-center gap-1.5 px-2.5 py-2" style={{ borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
             {genderOptions.map(opt => (
               <button
@@ -983,14 +1299,57 @@ function VoicePicker({
             </button>
           </div>
 
+          {/* Dropdown filters row */}
+          <div className="px-2.5 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <div className="flex gap-1.5 flex-wrap">
+              <select value={langFilter} onChange={e => setLangFilter(e.target.value)} style={selectStyle}>
+                <option value="">Language</option>
+                {opts.language.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={ageFilter} onChange={e => setAgeFilter(e.target.value)} style={selectStyle}>
+                <option value="">Age</option>
+                {opts.age.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={dialectFilter} onChange={e => setDialectFilter(e.target.value)} style={selectStyle}>
+                <option value="">Dialect</option>
+                {opts.dialect.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={demographicFilter} onChange={e => setDemographicFilter(e.target.value)} style={selectStyle}>
+                <option value="">Demographic</option>
+                {opts.demographic.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={genreFilter} onChange={e => setGenreFilter(e.target.value)} style={selectStyle}>
+                <option value="">Genre</option>
+                {opts.genre.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            {hasFilters && (
+              <button
+                onClick={() => {
+                  setGenderFilter('all')
+                  setFlagshipOnly(false)
+                  setLangFilter('')
+                  setAgeFilter('')
+                  setDialectFilter('')
+                  setDemographicFilter('')
+                  setGenreFilter('')
+                }}
+                className="mt-1.5 text-xs transition hover:opacity-70"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
           {/* Voice list */}
           <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
             {filtered.length === 0 ? (
               <p className="py-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>No voices match</p>
             ) : (
-              filtered.map(v => (
+              filtered.map((v, i) => (
                 <button
-                  key={v.speaker}
+                  key={`${v.speaker}-${i}`}
                   onClick={() => { onSelect(v.speaker); setOpen(false) }}
                   className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition hover:opacity-80"
                   style={{
@@ -1006,7 +1365,7 @@ function VoicePicker({
                   </span>
                   {v.flagship && <span style={{ color: '#fbbf24', fontSize: '9px', flexShrink: 0 }}>★</span>}
                   <span className="truncate" style={{ color: 'var(--text-muted)' }}>
-                    {v.dialect} · {v.gender} · {v.age}
+                    {[v.language, v.dialect, v.gender, v.age].filter(Boolean).join(' · ')}
                   </span>
                   {v.speaker === selected && (
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="ml-auto shrink-0">
@@ -1045,7 +1404,10 @@ function OovRow({
   onPlay,
   selectedVoice,
   isSubmitted,
-  onRequestFix,
+  isFlagged,
+  onFlag,
+  onCancelFix,
+  addToast,
 }: {
   word: string
   frequency: number
@@ -1057,27 +1419,137 @@ function OovRow({
   onPlay: (key: string, fetchFn: () => Promise<string>) => void
   selectedVoice: string
   isSubmitted: boolean
-  onRequestFix: (word: string) => void
+  isFlagged: boolean
+  onFlag: (word: string) => void
+  onCancelFix: (word: string) => void
+  addToast: (msg: string) => void
 }) {
   const defaultKey = `${word}:default`
-  const suggestedKey = `${word}:suggested`
   const hasPhonetic = !!phonetic
+
+  // Editable rime phonetic — null means "unedited"; stored value is the full display text
+  // including any curly brackets the user types (e.g. "{J1es2xn}", "spell(ATS)", etc.)
+  const [editedRime, setEditedRime] = useState<string | null>(null)
+
+  // What we show in the input box: default to {rime} so brackets are visible
+  const defaultDisplay = phonetic ? `{${phonetic.rime}}` : ''
+  const activeRimeDisplay = editedRime ?? defaultDisplay
+
+  // Normalise the display text into what the API actually receives.
+  // • Has { or spell( → send as-is (user is being explicit)
+  // • Plain text, no brackets → wrap in {} so phonemizeBetweenBrackets handles it
+  const rimeToApiText = (raw: string) => {
+    const t = raw.trim()
+    if (!t) return ''
+    if (t.includes('{') || t.includes('spell(')) return t
+    return `{${t}}`
+  }
+  const activeRimeApiText = rimeToApiText(activeRimeDisplay)
+
+  const isEdited = editedRime !== null && editedRime !== defaultDisplay
+
+  // Key includes the full display text so cache is invalidated on every edit
+  const suggestedKey = `${word}:${activeRimeDisplay}`
+
+  // Reset when the underlying phonetic changes (e.g. re-run check)
+  const prevPhoneticRef = useRef(phonetic?.rime)
+  useEffect(() => {
+    if (phonetic?.rime !== prevPhoneticRef.current) {
+      setEditedRime(null)
+      prevPhoneticRef.current = phonetic?.rime
+    }
+  }, [phonetic?.rime])
+
+  // ── recording state ─────────────────────────────────────────────────────────
+  type RecState = 'idle' | 'recording' | 'analyzing' | 'done'
+  const [recState, setRecState] = useState<RecState>('idle')
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null)
+  const [recordingPlayback, setRecordingPlayback] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const analysisTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      if (analysisTimerRef.current) clearTimeout(analysisTimerRef.current)
+      if (recordedUrl) URL.revokeObjectURL(recordedUrl)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleMicClick = async () => {
+    if (recState === 'recording') {
+      // Stop recording
+      mediaRecorderRef.current?.stop()
+      return
+    }
+    if (recState === 'analyzing' || recState === 'done') {
+      // Reset
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      if (recordedUrl) URL.revokeObjectURL(recordedUrl)
+      setRecordedUrl(null)
+      setRecState('idle')
+      return
+    }
+    // Start recording
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const chunks: BlobPart[] = []
+      const mr = new MediaRecorder(stream)
+      mediaRecorderRef.current = mr
+      mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        const url = URL.createObjectURL(blob)
+        setRecordedUrl(url)
+        setRecState('analyzing')
+        // Simulate a 2.5s "analysis" then show the not-available notice
+        analysisTimerRef.current = setTimeout(() => {
+          setRecState('done')
+          addToast('Recording captured — phonetic correction via audio matching requires a production API not available in this prototype')
+        }, 2500)
+      }
+      mr.start()
+      setRecState('recording')
+    } catch {
+      addToast('Microphone access denied — allow mic permissions to use this feature')
+    }
+  }
+
+  const handlePlayRecording = () => {
+    if (!recordedUrl || recordingPlayback) return
+    const audio = new Audio(recordedUrl)
+    setRecordingPlayback(true)
+    audio.onended = () => setRecordingPlayback(false)
+    audio.play().catch(() => setRecordingPlayback(false))
+  }
+
+  const micTitle = recState === 'idle' ? `Record your pronunciation of "${word}" to suggest a correction`
+    : recState === 'recording' ? 'Stop recording'
+    : recState === 'analyzing' ? 'Getting pronunciation… (click to cancel)'
+    : 'Recording captured — click to discard'
 
   return (
     <div
       style={{
         borderTop: isFirst ? undefined : '1px solid var(--border-subtle)',
         padding: '10px 20px',
+        borderLeft: isSubmitted ? '3px solid #34d399' : isFlagged ? '3px solid #fbbf24' : '3px solid transparent',
+        opacity: isSubmitted ? 0.6 : 1,
+        transition: 'opacity 0.2s ease, border-left-color 0.2s ease',
       }}
     >
-      {/* Row 1: word + controls — never wraps */}
+      {/* Row 1: word + listen controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-        {/* Word — shrinks before controls do */}
+        {/* Word */}
         <span
           style={{
             fontFamily: 'var(--font-mono, ui-monospace, monospace)',
             fontSize: '13px',
-            fontWeight: 500,
+            fontWeight: 600,
             color: 'var(--text-emphasis)',
             minWidth: 0,
             overflow: 'hidden',
@@ -1088,79 +1560,98 @@ function OovRow({
         >
           {word}
         </span>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+          ×{frequency.toLocaleString()}
+        </span>
 
-        {/* Controls — pushed right, never shrink or wrap */}
+        {/* Listen controls — pushed right */}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          <span
-            style={{
-              borderRadius: '999px',
-              padding: '1px 7px',
-              fontSize: '11px',
-              fontVariantNumeric: 'tabular-nums',
-              backgroundColor: 'var(--surface-3)',
-              color: 'var(--text-muted)',
-            }}
-          >
-            ×{frequency.toLocaleString()}
-          </span>
-
-          <PlayButton
-            label="Current"
-            isLoading={loadingAudio === defaultKey}
-            isPlaying={playingAudio === defaultKey}
-            title={`Hear how "${word}" sounds with voice: ${selectedVoice}`}
+          {/* Current — icon only, secondary */}
+          <button
             onClick={() => onPlay(defaultKey, () => fetchWordAudio(word, RIME_API_KEY, selectedVoice))}
-          />
+            title={`Hear current pronunciation of "${word}"`}
+            style={{
+              width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--surface-3)', color: playingAudio === defaultKey ? '#fbbf24' : 'var(--text-muted)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}
+            className="hover:opacity-80 transition"
+          >
+            {loadingAudio === defaultKey
+              ? <span className="h-2.5 w-2.5 animate-spin rounded-full border border-[var(--border-strong)] border-t-[var(--text-muted)]" />
+              : <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
+            }
+          </button>
+
+          {/* Suggested — labeled, primary listen action */}
           {(hasPhonetic || phoneticsLoading) && (
             <PlayButton
-              label="Suggested"
-              isLoading={loadingAudio === suggestedKey}
-              isPlaying={playingAudio === suggestedKey}
-              disabled={!hasPhonetic}
-              accent
-              title={hasPhonetic ? `Hear Rime pronounce /${phonetic.ipa}/ with voice: ${selectedVoice}` : 'Loading…'}
+              label={recState === 'done' ? 'Recording' : isEdited ? 'Preview edit' : 'Suggested'}
+              isLoading={recState === 'analyzing' || loadingAudio === suggestedKey}
+              isPlaying={recState === 'done' ? recordingPlayback : playingAudio === suggestedKey}
+              disabled={!hasPhonetic && recState === 'idle'}
+              accent={recState === 'idle' && !isEdited}
+              title={
+                recState === 'done' ? 'Play back your recording'
+                : recState === 'analyzing' ? 'Getting pronunciation…'
+                : hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay} with voice: ${selectedVoice}`
+                : 'Loading…'
+              }
               onClick={() => {
-                if (!phonetic) return
-                onPlay(suggestedKey, () => fetchPhoneticAudio(phonetic.rime, RIME_API_KEY, selectedVoice))
+                if (recState === 'done') { handlePlayRecording(); return }
+                if (recState === 'analyzing') return
+                if (!hasPhonetic) return
+                onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
               }}
             />
           )}
 
-          <button
-            onClick={() => !isSubmitted && onRequestFix(word)}
-            disabled={isSubmitted}
-            title={isSubmitted ? 'Correction already requested' : 'Request pronunciation correction from the Rime annotation team'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '26px',
-              height: '26px',
-              borderRadius: '50%',
-              border: `1px solid ${isSubmitted ? 'rgba(52,211,153,0.3)' : 'var(--border-default)'}`,
-              backgroundColor: isSubmitted ? 'rgba(52,211,153,0.08)' : 'var(--surface-3)',
-              color: isSubmitted ? '#34d399' : 'var(--text-muted)',
-              cursor: isSubmitted ? 'default' : 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            {isSubmitted ? (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            ) : (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path d="M2 9.5V7l4.5-5.5 1.5 1.5L3.5 8.5H2zM6.5 3l1.5-1 2 2-1 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M8 1l3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            )}
-          </button>
+          {/* Flag / submitted status button */}
+          {isSubmitted ? (
+            <button
+              onClick={() => onCancelFix(word)}
+              title="Correction submitted — click to cancel"
+              style={{
+                fontSize: '11px', borderRadius: '999px', padding: '3px 10px', cursor: 'pointer',
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+                color: '#34d399', backgroundColor: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
+                transition: 'all 0.15s ease',
+              }}
+              className="hover:opacity-80 transition"
+            >
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Submitted
+            </button>
+          ) : (
+            <button
+              onClick={() => onFlag(word)}
+              title={isFlagged ? 'Flagged for correction — click to remove flag' : 'Flag this word for correction'}
+              style={{
+                fontSize: '11px', borderRadius: '999px', padding: '3px 10px', cursor: 'pointer',
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+                transition: 'all 0.15s ease',
+                ...(isFlagged ? {
+                  color: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)',
+                } : {
+                  color: 'var(--text-muted)', backgroundColor: 'transparent', border: '1px solid var(--border-subtle)',
+                }),
+              }}
+              className="hover:opacity-80 transition"
+            >
+              {isFlagged ? (
+                <>
+                  <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Flagged
+                </>
+              ) : 'Needs correction'}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Row 2: phonetic badges — shown below the word when available */}
+      {/* Row 2: phonetic badges — IPA (read-only) + editable Rime phonetic + mic */}
       {(phoneticsLoading || hasPhonetic) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '5px', flexWrap: 'wrap' }}>
           {phoneticsLoading ? (
             <>
               <div style={{ height: '18px', width: '80px', borderRadius: '4px', backgroundColor: 'var(--surface-3)', animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -1168,6 +1659,9 @@ function OovRow({
             </>
           ) : (
             <>
+              {/* IPA — read-only */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', userSelect: 'none', flexShrink: 0 }}>IPA:</span>
               <span
                 style={{
                   borderRadius: '4px',
@@ -1184,26 +1678,202 @@ function OovRow({
               >
                 /{phonetic!.ipa}/
               </span>
-              <span
-                style={{
-                  borderRadius: '4px',
-                  padding: '1px 6px',
-                  fontSize: '11.5px',
-                  fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-                  backgroundColor: 'rgba(34,211,238,0.08)',
-                  border: '1px solid rgba(34,211,238,0.2)',
-                  color: '#67e8f9',
-                  userSelect: 'all',
-                  whiteSpace: 'nowrap',
-                }}
-                title="Rime phonetic encoding — click to select all"
-              >
-                {`{${phonetic!.rime}}`}
-              </span>
+              </div>
+
+              {/* Rime phonetic — editable inline + mic button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', userSelect: 'none', flexShrink: 0 }}>Rime:</span>
+                <input
+                  value={activeRimeDisplay}
+                  onChange={e => setEditedRime(e.target.value)}
+                  spellCheck={false}
+                  title="Rime phonetic encoding — supports {phonetic}, spell(WORD), or mixed"
+                  style={{
+                    fontSize: '11.5px',
+                    fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+                    backgroundColor: isEdited ? 'rgba(34,211,238,0.14)' : 'rgba(34,211,238,0.08)',
+                    border: `1px solid ${isEdited ? 'rgba(34,211,238,0.5)' : 'rgba(34,211,238,0.2)'}`,
+                    color: '#67e8f9',
+                    borderRadius: '4px',
+                    padding: '1px 5px',
+                    outline: 'none',
+                    minWidth: '40px',
+                    width: `${Math.max(40, activeRimeDisplay.length * 7.5 + 14)}px`,
+                  }}
+                />
+                {isEdited ? (
+                  <button
+                    onClick={() => setEditedRime(null)}
+                    title="Reset to original"
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', color: 'var(--text-muted)', padding: 0, opacity: 0.7 }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <path d="M5.5 1A4.5 4.5 0 1 0 10 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      <path d="M7.5 1h2.5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: 'rgba(103,232,249,0.4)', flexShrink: 0 }}>
+                    <path d="M1.5 8H3l4.5-4.5-1.5-1.5L1.5 6.5V8zM6.5 2l1 1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+
+                {/* Mic button — lives here since it affects the rime spelling */}
+                <button
+                  onClick={handleMicClick}
+                  title={micTitle}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    border: `1px solid ${
+                      recState === 'recording' ? 'rgba(239,68,68,0.5)'
+                      : recState === 'analyzing' ? 'rgba(251,191,36,0.4)'
+                      : recState === 'done' ? 'rgba(52,211,153,0.35)'
+                      : 'var(--border-subtle)'
+                    }`,
+                    backgroundColor:
+                      recState === 'recording' ? 'rgba(239,68,68,0.12)'
+                      : recState === 'analyzing' ? 'rgba(251,191,36,0.1)'
+                      : recState === 'done' ? 'rgba(52,211,153,0.08)'
+                      : 'transparent',
+                    color:
+                      recState === 'recording' ? '#ef4444'
+                      : recState === 'analyzing' ? '#fbbf24'
+                      : recState === 'done' ? '#34d399'
+                      : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    boxShadow: recState === 'recording' ? '0 0 0 3px rgba(239,68,68,0.15)' : undefined,
+                    animation: recState === 'recording' ? 'micPulse 1.2s ease-in-out infinite' : undefined,
+                  }}
+                >
+                  {recState === 'analyzing' ? (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+                      <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="11 6" strokeLinecap="round"/>
+                    </svg>
+                  ) : recState === 'done' ? (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <rect x="3.5" y="1" width="3" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                      <path d="M1.5 5a3.5 3.5 0 0 0 7 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      <line x1="5" y1="8.5" x2="5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                  )}
+                </button>
+
+                {/* Inline recording status label */}
+                {recState === 'recording' && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', color: '#ef4444' }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'micPulse 1.2s ease-in-out infinite' }} />
+                    Recording…
+                  </span>
+                )}
+                {recState === 'analyzing' && (
+                  <span style={{ fontSize: '10.5px', color: '#fbbf24' }}>Getting pronunciation…</span>
+                )}
+              </div>
             </>
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── BulkCorrectionModal ──────────────────────────────────────────────────────
+
+function BulkCorrectionModal({
+  words,
+  onClose,
+  onSubmit,
+}: {
+  words: string[]
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handle)
+    return () => document.removeEventListener('keydown', handle)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl p-6"
+        style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 mb-5">
+          <div>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-emphasis)' }}>
+              Request corrections for all words
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              The Rime annotation team will review and publish each correction to the dictionary.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1 transition hover:opacity-70" style={{ color: 'var(--text-muted)' }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Word list */}
+        <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+          <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{words.length} word{words.length !== 1 ? 's' : ''}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {words.map(w => (
+              <span key={w} className="rounded px-2 py-0.5 font-mono text-xs" style={{ backgroundColor: 'var(--surface-3)', color: 'var(--text-emphasis)' }}>{w}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* What will happen */}
+        <div className="space-y-2 mb-5">
+          {[
+            { icon: '📬', text: 'The Rime annotation team will be alerted immediately' },
+            { icon: '🎧', text: 'They will listen to each attempted pronunciation, review the suggested IPA, and publish corrections' },
+            { icon: '⏱', text: 'Estimated turnaround: 1–3 business days per word' },
+            { icon: '📊', text: 'You\'ll be able to track status in the Monitoring section' },
+          ].map(({ icon, text }) => (
+            <div key={text} className="flex items-start gap-2.5">
+              <span className="text-sm leading-none mt-0.5">{icon}</span>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 justify-end">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80"
+            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-2)' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSubmit}
+            className="rounded-lg px-4 py-2 text-sm font-semibold transition hover:opacity-90"
+            style={{ backgroundColor: 'var(--text-emphasis)', color: 'var(--surface-0)' }}
+          >
+            Submit {words.length} request{words.length !== 1 ? 's' : ''} →
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

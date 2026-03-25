@@ -51,3 +51,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
+
+@keyframes micPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(239,68,68,0.06); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

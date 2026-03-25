@@ -39,47 +39,50 @@ describe('parseWords', () => {
 
 describe('ipaToRime', () => {
   it('converts a simple stressed word correctly', () => {
-    // "Pfizer" = /ˈfaɪzər/  →  f + 1(stress) + Y(aɪ) + z + x(ə) + r
-    expect(ipaToRime('ˈfaɪzər')).toBe('f1Yzxr')
+    // "Pfizer" /ˈfaɪzər/ → f + 1Y(aɪ) + z + 0x(ə) + r
+    expect(ipaToRime('ˈfaɪzər')).toBe('f1Yz0xr')
   })
 
-  it('converts secondary stress', () => {
-    // "Tylenol" = /ˈtaɪlənɑl/  →  t + 1Y + l + x + n + a + l
-    expect(ipaToRime('ˈtaɪlənɑl')).toBe('t1Ylxnal')
+  it('converts a multisyllabic word correctly', () => {
+    // "Tylenol" /ˈtaɪlənɑl/ → t + 1Y + l + 0x + n + 0a + l
+    expect(ipaToRime('ˈtaɪlənɑl')).toBe('t1Yl0xn0al')
+  })
+
+  it('matches docs example: comma = k1am0x', () => {
+    // /ˈkɑmə/ → k + 1a + m + 0x
+    expect(ipaToRime('ˈkɑmə')).toBe('k1am0x')
   })
 
   it('handles consonant digraphs', () => {
-    // tʃ and dʒ are affricates — single phonemes, so they become C and J.
-    // Stress (ˈ) defers to the *vowel*, which comes after the affricate.
-    expect(ipaToRime('ˈtʃɛri')).toBe('C1Eri')  // "cherry": C(tʃ) + 1E(ˈɛ) + r + i
-    expect(ipaToRime('ˈdʒʌmp')).toBe('J1Amp')  // "jump":   J(dʒ) + 1A(ˈʌ) + m + p
+    // Stress (ˈ) defers to the vowel after the affricate.
+    expect(ipaToRime('ˈtʃɛri')).toBe('C1Er0i')  // "cherry"
+    expect(ipaToRime('ˈdʒʌmp')).toBe('J1Amp')   // "jump" — no trailing vowels
   })
 
-  it('handles vowel digraphs', () => {
-    expect(ipaToRime('eɪ')).toBe('e')    // bait
-    expect(ipaToRime('oʊ')).toBe('o')    // boat
-    expect(ipaToRime('aɪ')).toBe('Y')    // bite
-    expect(ipaToRime('aʊ')).toBe('W')    // about
-    expect(ipaToRime('ɔɪ')).toBe('O')    // boy
+  it('handles vowel digraphs — unstressed get 0 prefix', () => {
+    expect(ipaToRime('eɪ')).toBe('0e')
+    expect(ipaToRime('oʊ')).toBe('0o')
+    expect(ipaToRime('aɪ')).toBe('0Y')
+    expect(ipaToRime('aʊ')).toBe('0W')
+    expect(ipaToRime('ɔɪ')).toBe('0O')
   })
 
   it('strips IPA brackets if present', () => {
-    expect(ipaToRime('/ˈfaɪzər/')).toBe('f1Yzxr')
-    expect(ipaToRime('[ˈfaɪzər]')).toBe('f1Yzxr')
+    expect(ipaToRime('/ˈfaɪzər/')).toBe('f1Yz0xr')
+    expect(ipaToRime('[ˈfaɪzər]')).toBe('f1Yz0xr')
   })
 
   it('strips length marks', () => {
-    // /iː/ and /uː/ should behave the same as /i/ and /u/
-    expect(ipaToRime('iː')).toBe('i')
-    expect(ipaToRime('uː')).toBe('u')
+    expect(ipaToRime('iː')).toBe('0i')
+    expect(ipaToRime('uː')).toBe('0u')
   })
 
-  it('maps special consonants', () => {
-    expect(ipaToRime('ŋ')).toBe('G')   // sing
-    expect(ipaToRime('ʃ')).toBe('S')   // shy
-    expect(ipaToRime('θ')).toBe('T')   // thigh
-    expect(ipaToRime('ð')).toBe('D')   // thy
-    expect(ipaToRime('ʒ')).toBe('Z')   // pleasure
+  it('maps special consonants (no stress prefix on consonants)', () => {
+    expect(ipaToRime('ŋ')).toBe('G')
+    expect(ipaToRime('ʃ')).toBe('S')
+    expect(ipaToRime('θ')).toBe('T')
+    expect(ipaToRime('ð')).toBe('D')
+    expect(ipaToRime('ʒ')).toBe('Z')
   })
 
   it('returns empty string for empty input', () => {
