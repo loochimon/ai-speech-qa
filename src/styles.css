@@ -26,6 +26,17 @@
   box-sizing: border-box;
 }
 
+/* Sidebar hidden below md (768px) */
+.app-sidebar {
+  display: flex;
+}
+
+@media (max-width: 767px) {
+  .app-sidebar {
+    display: none;
+  }
+}
+
 html,
 body {
   min-height: 100%;
