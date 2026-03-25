@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute, Outlet } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
 import appCss from '../styles.css?url'
 
@@ -106,46 +106,6 @@ function IconShield() {
   )
 }
 
-function IconDocs() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
-      <line x1="4.5" y1="5" x2="9.5" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
-      <line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
-      <line x1="4.5" y1="10" x2="7.5" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
-    </svg>
-  )
-}
-
-function IconCreditCard() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
-      <line x1="1" y1="6" x2="13" y2="6" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
-    </svg>
-  )
-}
-
-function IconKey() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <circle cx="5" cy="6" r="3.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
-      <path d="M7.5 8.5L12 13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
-      <line x1="9" y1="11" x2="10.5" y2="9.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
-    </svg>
-  )
-}
-
-function IconTeam() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <circle cx="5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
-      <path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
-      <circle cx="10.5" cy="4" r="2" stroke="currentColor" strokeWidth="1.3" opacity="0.7" />
-      <path d="M10.5 8c1.7 0 3 1.3 3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.7" />
-    </svg>
-  )
-}
 
 // ─── sidebar ──────────────────────────────────────────────────────────────────
 

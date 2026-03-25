@@ -1,3 +1,38 @@
+// ─── voice catalogue ──────────────────────────────────────────────────────────
+
+export interface VoiceEntry {
+  speaker: string
+  gender: string      // "Male" | "Female" | "Non-binary"
+  age: string         // "Young Adult" | "Adult" | "Elder"
+  country: string
+  dialect: string
+  demographic: string
+  genre: string[]
+  modelId: string
+  lang: string
+  language: string
+  flagship: boolean
+}
+
+const VOICE_DETAILS_URL = 'https://users.rime.ai/data/voices/voice_details.json'
+
+/**
+ * Fetches all mistv2 English voices from the Rime voice catalogue.
+ * Flagship voices are sorted first, then alphabetically by speaker name.
+ */
+export async function fetchVoices(): Promise<VoiceEntry[]> {
+  const res = await fetch(VOICE_DETAILS_URL)
+  if (!res.ok) throw new Error(`Failed to fetch voices: ${res.status}`)
+  const all: VoiceEntry[] = await res.json()
+  return all
+    .filter(v => v.modelId === 'mistv2' && v.lang === 'eng')
+    .sort((a, b) => {
+      if (a.flagship && !b.flagship) return -1
+      if (!a.flagship && b.flagship) return 1
+      return a.speaker.localeCompare(b.speaker)
+    })
+}
+
 // ─── word parsing ─────────────────────────────────────────────────────────────
 
 const wordSegmenter = new Intl.Segmenter('en', { granularity: 'word' })
@@ -47,7 +82,7 @@ export async function fetchOov(words: string[], apiKey: string): Promise<string[
 /**
  * Synthesises `word` with Rime TTS and returns a blob URL for the audio.
  */
-export async function fetchWordAudio(word: string, apiKey: string): Promise<string> {
+export async function fetchWordAudio(word: string, apiKey: string, speaker = 'lagoon'): Promise<string> {
   const res = await fetch(RIME_TTS_URL, {
     method: 'POST',
     headers: {
@@ -55,7 +90,7 @@ export async function fetchWordAudio(word: string, apiKey: string): Promise<stri
       'Content-Type': 'application/json',
       Accept: 'audio/mp3',
     },
-    body: JSON.stringify({ text: word, speaker: 'lagoon', modelId: 'mistv2' }),
+    body: JSON.stringify({ text: word, speaker, modelId: 'mistv2' }),
   })
   if (!res.ok) throw new Error(`TTS API error ${res.status}: ${await res.text()}`)
   const blob = await res.blob()
@@ -275,7 +310,7 @@ Example: {"Pfizer": "ˈfaɪzər", "Zoloft": "ˈzoʊlɑft", "Lisinopril": "lɪˈs
  * Pass the bare Rime phoneme sequence (e.g. "f1Yzxr") — this function wraps it
  * in `{}` before sending to Rime TTS.
  */
-export async function fetchPhoneticAudio(phonetic: string, apiKey: string): Promise<string> {
+export async function fetchPhoneticAudio(phonetic: string, apiKey: string, speaker = 'lagoon'): Promise<string> {
   const res = await fetch(RIME_TTS_URL, {
     method: 'POST',
     headers: {
@@ -285,7 +320,7 @@ export async function fetchPhoneticAudio(phonetic: string, apiKey: string): Prom
     },
     body: JSON.stringify({
       text: `{${phonetic}}`,
-      speaker: 'lagoon',
+      speaker,
       modelId: 'mistv2',
       phonemizeBetweenBrackets: true,
     }),
