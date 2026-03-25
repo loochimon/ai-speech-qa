@@ -239,7 +239,7 @@ function ResearchPage() {
 
   const coverageColor =
     !results
-      ? 'text-white'
+      ? ''
       : results.coveragePct >= 95
         ? 'text-emerald-400'
         : results.coveragePct >= 80
@@ -248,7 +248,7 @@ function ResearchPage() {
 
   const barColor =
     !results
-      ? 'bg-[#3b3b3b]'
+      ? ''
       : results.coveragePct >= 95
         ? 'bg-emerald-500'
         : results.coveragePct >= 80
