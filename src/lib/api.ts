@@ -58,7 +58,7 @@ export function parseWords(text: string): Map<string, number> {
 
 // ─── Rime APIs ────────────────────────────────────────────────────────────────
 
-const RIME_OOV_URL = 'https://beta.rime.ai/oov'
+const RIME_OOV_URL = 'https://users.rime.ai/oov'
 const RIME_TTS_URL = 'https://users.rime.ai/v1/rime-tts'
 
 /**

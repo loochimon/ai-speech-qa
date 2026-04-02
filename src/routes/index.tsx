@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -99,6 +99,15 @@ const RANDOM_USE_CASES = [
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
+export interface RequestedWord {
+  word: string
+  frequency: number
+  ipa: string
+  rime: string
+  date: string
+  status: 'Requested' | 'In Review' | 'Updated' | 'Rejected'
+}
+
 interface OovWord { word: string; frequency: number }
 
 interface Results {
@@ -161,7 +170,11 @@ function ResearchPage() {
 
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [historyExpanded, setHistoryExpanded] = useState(false)
+  const [showRequestConfirm, setShowRequestConfirm] = useState(false)
+  const [showGeneratePopover, setShowGeneratePopover] = useState(false)
+  const generateRef = useRef<HTMLDivElement>(null)
 
+  const navigate = useNavigate()
   const wordCount = useMemo(() => parseWords(text).size, [text])
 
   // Load voice catalogue once on mount
@@ -170,6 +183,16 @@ function ResearchPage() {
       .then(setVoices)
       .catch(() => {}) // fail silently — lagoon always works as fallback
   }, [])
+
+  // Close generate popover on outside click
+  useEffect(() => {
+    if (!showGeneratePopover) return
+    const handle = (e: MouseEvent) => {
+      if (!generateRef.current?.contains(e.target as Node)) setShowGeneratePopover(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [showGeneratePopover])
 
   // ── toast helpers ───────────────────────────────────────────────────────────
 
@@ -391,23 +414,23 @@ function ResearchPage() {
     })
   }, [])
 
-  // Submit all flagged words for correction at once
+  // Submit all OOV words — save to localStorage and show confirmation
   const handleSubmitFlagged = useCallback(() => {
-    const toSubmit = [...flaggedWords]
-    if (toSubmit.length === 0) return
-    setSubmittedWords(prev => new Set([...prev, ...toSubmit]))
-    setFlaggedWords(new Set())
-    setHistory(h => {
-      if (h.length === 0) return h
-      const [latest, ...rest] = h
-      return [{
-        ...latest,
-        submittedWords: [...new Set([...latest.submittedWords, ...toSubmit])],
-        flaggedWords: [],
-      }, ...rest]
-    })
-    addToast(`Correction requested for ${toSubmit.length} word${toSubmit.length !== 1 ? 's' : ''} — the annotation team will be notified`)
-  }, [flaggedWords, addToast])
+    if (!results || results.oovWords.length === 0) return
+    const oovWords = results.oovWords
+    const dateLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const existing: RequestedWord[] = (() => { try { return JSON.parse(localStorage.getItem('rime_requested_words') ?? '[]') } catch { return [] } })()
+    const existingSet = new Set(existing.map(w => w.word.toLowerCase()))
+    const newEntries: RequestedWord[] = oovWords
+      .filter(w => !existingSet.has(w.word.toLowerCase()))
+      .map(w => ({
+        word: w.word, frequency: w.frequency,
+        ipa: phonetics[w.word]?.ipa ?? '', rime: phonetics[w.word]?.rime ?? '',
+        date: dateLabel, status: 'Requested' as const,
+      }))
+    localStorage.setItem('rime_requested_words', JSON.stringify([...newEntries, ...existing]))
+    setShowRequestConfirm(true)
+  }, [results, phonetics])
 
   // Cancel a submitted correction (returns word to unflagged state)
   const handleCancelFix = useCallback((word: string) => {
@@ -720,222 +743,291 @@ function ResearchPage() {
   // ── render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--surface-0)' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0D0D0D' }}>
 
-      {/* ── Page header ── */}
-      <div
-        className="flex items-center justify-between gap-4 px-6 py-4"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 className="text-lg font-semibold tracking-tight" style={{ color: 'var(--text-emphasis)' }}>
-            Research
-          </h1>
-          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
-            Check vocabulary coverage before you ship
-          </p>
+      {/* ── Title row ── */}
+      <div style={{ padding: '24px 26px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontWeight: 700, fontSize: '32px', color: '#FFFFFF', margin: 0, letterSpacing: '-0.01em' }}>
+          Check Coverage
+        </h1>
+        <a
+          href="https://docs.rime.ai/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            backgroundColor: '#161616', border: '0.5px solid #434343',
+            padding: '8px 16px', borderRadius: '5px',
+            display: 'flex', alignItems: 'center', gap: '8px',
+            textDecoration: 'none', fontSize: '13px', color: '#FFFFFF',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="2" y="1" width="10" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M4.5 4.5h5M4.5 6.5h5M4.5 8.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          </svg>
+          Documentation
+        </a>
+      </div>
+
+      {/* ── Filter bar ── */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-end', gap: '11px',
+        padding: '20px 26px 12px',
+        borderBottom: '0.5px solid #383838',
+      }}>
+        {/* Search input — matches left panel width */}
+        <div style={{ width: '398px', flexShrink: 0 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '8px 12px',
+            backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
+              <circle cx="6" cy="6" r="4.5" stroke="#A5A5A5" strokeWidth="1.2" />
+              <path d="M9.5 9.5L12.5 12.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            <input
+              placeholder="Search words…"
+              style={{
+                flex: 1, background: 'none', border: 'none', outline: 'none',
+                color: '#FFFFFF', fontSize: '12px', fontFamily: 'Inter, sans-serif',
+              }}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleDownloadCsv}
-            disabled={!canDownloadCsv}
-            title={canDownloadCsv ? 'Download OOV words as CSV' : 'No out-of-vocabulary words to export'}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-35"
-            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-1)' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 9h8M6 1v6M3.5 4.5L6 7l2.5-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            CSV
-          </button>
-          <button
-            onClick={handleExportPdf}
-            disabled={!canExportPdf}
-            title={canExportPdf ? 'Export results as a shareable PDF report' : 'Run a coverage check to export a report'}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-35"
-            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-1)' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <rect x="2" y="1" width="8" height="10" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M4 4h4M4 6h4M4 8h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-            </svg>
-            PDF
-          </button>
-          <a
-            href="https://docs.rime.ai/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Rime documentation"
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition hover:opacity-80"
-            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-1)', textDecoration: 'none' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-              <line x1="3.5" y1="4.5" x2="8.5" y2="4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <line x1="3.5" y1="6.5" x2="8.5" y2="6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            Docs
-          </a>
+        {/* Filter dropdowns */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', flex: 1 }}>
+          {/* Voice */}
+          <div style={{ width: '299px', flexShrink: 0 }}>
+            <span style={{ display: 'block', fontSize: '11px', color: '#A5A5A5', marginBottom: '4px', fontWeight: 500 }}>Voice</span>
+            <VoicePicker
+              voices={voices}
+              selected={selectedVoice}
+              onSelect={v => { setSelectedVoice(v); audioCache.current.clear() }}
+            />
+          </div>
+          {/* Language */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: '11px', color: '#A5A5A5', marginBottom: '4px', fontWeight: 500 }}>Language</span>
+            <div style={{
+              padding: '8px 12px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
+              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+            }}>
+              <span>All</span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+          </div>
+          {/* Time */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: '11px', color: '#A5A5A5', marginBottom: '4px', fontWeight: 500 }}>Time</span>
+            <div style={{
+              padding: '8px 12px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
+              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+            }}>
+              <span>All Time</span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Two-column layout ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start p-6">
+      {/* ── Main content: left panel + divider + right panel ── */}
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 240px)' }}>
 
-        {/* ── Left column ── */}
-        <div className="space-y-3">
+        {/* ── Left panel ── */}
+        <div style={{ width: '398px', flexShrink: 0, padding: '18px 22px 40px' }}>
 
-          {/* Input card */}
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}
-          >
-            {/* Generate section */}
-            <div className="p-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-              <p className="text-xs font-medium mb-2.5" style={{ color: 'var(--text-muted)' }}>
-                Generate a sample script
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="describe your use case…"
-                  value={useCase}
-                  onChange={e => { setUseCase(e.target.value); setScriptError('') }}
-                  onKeyDown={e => e.key === 'Enter' && handleGenerate()}
+          {/* Script label + AI Generate + Upload */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
+            <span style={{ fontWeight: 600, fontSize: '20px', color: '#FFFFFF' }}>Script</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div ref={generateRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowGeneratePopover(p => !p)}
                   disabled={isBusy}
-                  className="flex-1 rounded-lg px-3 py-2 text-sm outline-none transition disabled:opacity-50"
-                  style={{ minWidth: '180px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)', color: 'var(--text-emphasis)' }}
-                />
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    onClick={() => handleGenerate()}
-                    disabled={!useCase.trim() || isBusy}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
-                    style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-2)' }}
-                  >
-                    {generatingScript ? (
-                      <>
-                        <span className="h-3 w-3 animate-spin rounded-full border-2" style={{ borderColor: 'var(--border-strong)', borderTopColor: 'var(--text-secondary)' }} />
-                        Generating…
-                      </>
-                    ) : 'Generate'}
-                  </button>
-                  <button
-                    onClick={handleLucky}
-                    disabled={isBusy}
-                    title="Pick a random use case and run coverage automatically"
-                    className="rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:opacity-80"
-                    style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-2)' }}
-                  >
-                    Random
-                  </button>
-                </div>
-              </div>
-              {scriptError && (
-                <p className="mt-2 text-xs" style={{ color: '#f87171' }}>{scriptError}</p>
-              )}
-            </div>
-
-            {/* Textarea with drag-and-drop + file upload */}
-            <div className="p-4 pb-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Script or word list</span>
-                <label
-                  className="flex items-center gap-1 text-xs font-medium cursor-pointer transition hover:opacity-80"
-                  style={{ color: 'var(--text-muted)' }}
-                  title="Upload a .txt or .csv file"
+                  style={{
+                    backgroundColor: '#161616', borderRadius: '5px', padding: '8px 12px',
+                    border: '0.5px solid #434343', display: 'flex', alignItems: 'center', gap: '6px',
+                    cursor: 'pointer', fontSize: '13px', color: '#A5A5A5',
+                    opacity: isBusy ? 0.5 : 1,
+                  }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                    <path d="M1 8h9M5.5 1v6M3 3.5L5.5 1 8 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z" />
                   </svg>
-                  Upload file
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".txt,.csv,.pdf,.docx"
-                    className="sr-only"
-                    onChange={handleFileInput}
-                  />
-                </label>
-              </div>
-              <div
-                className="relative rounded-xl overflow-hidden transition-all"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                style={{ outline: isDragging ? '2px dashed var(--text-muted)' : '2px solid transparent', outlineOffset: '-2px' }}
-              >
-                {isDragging && (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center rounded-xl z-10"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}
-                  >
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-emphasis)' }}>
-                      Drop file to import
-                    </span>
+                  AI Generate
+                </button>
+                {showGeneratePopover && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
+                    width: '300px', padding: '12px',
+                    backgroundColor: '#1a1a1a', border: '1px solid #383838', borderRadius: '8px',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  }}>
+                    <input
+                      type="text"
+                      placeholder="Describe your use case…"
+                      value={useCase}
+                      onChange={e => { setUseCase(e.target.value); setScriptError('') }}
+                      onKeyDown={e => { if (e.key === 'Enter') { handleGenerate(); setShowGeneratePopover(false) } }}
+                      autoFocus
+                      style={{
+                        width: '100%', padding: '8px 10px', borderRadius: '5px',
+                        backgroundColor: '#161616', border: '0.5px solid #434343',
+                        color: '#FFFFFF', fontSize: '13px', outline: 'none', marginBottom: '8px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => { handleGenerate(); setShowGeneratePopover(false) }}
+                        disabled={!useCase.trim() || isBusy}
+                        style={{
+                          flex: 1, padding: '6px 12px', borderRadius: '5px', border: 'none',
+                          backgroundColor: '#FE8D58', color: '#D7D7D7', fontSize: '12px', fontWeight: 500,
+                          cursor: 'pointer', opacity: (!useCase.trim() || isBusy) ? 0.4 : 1,
+                        }}
+                      >
+                        {generatingScript ? 'Generating…' : 'Generate'}
+                      </button>
+                      <button
+                        onClick={() => { handleLucky(); setShowGeneratePopover(false) }}
+                        disabled={isBusy}
+                        style={{
+                          padding: '6px 12px', borderRadius: '5px',
+                          border: '0.5px solid #434343', backgroundColor: '#161616',
+                          color: '#A5A5A5', fontSize: '12px', cursor: 'pointer',
+                          opacity: isBusy ? 0.4 : 1,
+                        }}
+                      >
+                        Random
+                      </button>
+                    </div>
+                    {scriptError && <p style={{ fontSize: '11px', color: '#f87171', marginTop: '6px' }}>{scriptError}</p>}
                   </div>
                 )}
-                <textarea
-                  className="w-full resize-none rounded-xl p-4 font-mono text-sm leading-relaxed outline-none transition placeholder:font-sans disabled:opacity-50"
-                  rows={10}
-                  placeholder="Paste a word list, script, or transcript…"
-                  value={text}
-                  onChange={e => handleTextChange(e.target.value)}
-                  disabled={isBusy}
-                  style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)', color: 'var(--text-emphasis)' }}
-                />
               </div>
-            </div>
-
-            {/* Action bar: voice picker + word count + check coverage */}
-            <div
-              className="flex items-center gap-3 px-4 py-3"
-              style={{ borderTop: '1px solid var(--border-subtle)' }}
-            >
-              <VoicePicker
-                voices={voices}
-                selected={selectedVoice}
-                onSelect={v => {
-                  setSelectedVoice(v)
-                  audioCache.current.clear() // flush cache so new voice is used
-                }}
-              />
-              <span className="flex-1 text-xs text-right" style={{ color: 'var(--text-muted)' }}>
-                {wordCount > 0
-                  ? `${wordCount.toLocaleString()} unique word${wordCount !== 1 ? 's' : ''}`
-                  : 'Word lists, scripts, transcripts'}
-              </span>
               <button
-                onClick={handleCheck}
-                disabled={wordCount === 0 || isBusy}
-                className="flex shrink-0 items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                style={{ backgroundColor: 'var(--text-emphasis)', color: 'var(--surface-0)' }}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isBusy}
+                style={{
+                  backgroundColor: '#161616', borderRadius: '5px', padding: '8px 12px',
+                  border: '0.5px solid #434343', cursor: 'pointer', fontSize: '13px', color: '#A5A5A5',
+                  opacity: isBusy ? 0.5 : 1,
+                }}
               >
-                {status === 'checking' && !generatingScript ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2" style={{ borderColor: 'var(--surface-2)', borderTopColor: 'transparent' }} />
-                    Checking…
-                  </>
-                ) : 'Check Coverage'}
+                ↑ Upload
+              </button>
+              <input ref={fileInputRef} type="file" accept=".txt,.csv,.pdf,.docx" style={{ display: 'none' }} onChange={handleFileInput} />
+            </div>
+          </div>
+
+          {/* Textarea */}
+          <div
+            style={{ position: 'relative' }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {isDragging && (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', zIndex: 10,
+              }}>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#FFFFFF' }}>Drop file to import</span>
+              </div>
+            )}
+            <textarea
+              rows={14}
+              placeholder={'Enter words or scripts here\n\nTips:\nOne word per line or comma-separated.'}
+              value={text}
+              onChange={e => handleTextChange(e.target.value)}
+              disabled={isBusy}
+              style={{
+                width: '100%', resize: 'none', boxSizing: 'border-box',
+                backgroundColor: '#141414',
+                border: 'none', borderBottom: '1px solid #2A2A2A',
+                color: text ? '#FFFFFF' : '#BBBBBB', fontSize: '14px',
+                padding: '16px', outline: 'none', lineHeight: '1.5',
+                opacity: isBusy ? 0.5 : 1,
+              }}
+            />
+          </div>
+
+          {/* Word count + Check Coverage button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
+            <span style={{ color: '#BBBBBB', fontSize: '14px' }}>
+              {wordCount} words
+            </span>
+            <button
+              onClick={handleCheck}
+              disabled={wordCount === 0 || isBusy}
+              style={{
+                backgroundColor: '#FFFFFF', color: '#000000', borderRadius: '5px',
+                padding: '8px 16px', border: 'none', fontSize: '14px',
+                cursor: 'pointer',
+                opacity: (wordCount === 0 || isBusy) ? 0.4 : 1,
+              }}
+            >
+              {status === 'checking' && !generatingScript ? 'Checking…' : 'Check Coverage'}
+            </button>
+          </div>
+
+          {/* History section */}
+          <div style={{ marginTop: '40px' }}>
+            <HistoryPanel
+              history={history}
+              expanded={historyExpanded}
+              onToggleExpanded={() => setHistoryExpanded(e => !e)}
+              onRestore={handleRestore}
+            />
+          </div>
+        </div>
+
+        {/* Vertical divider */}
+        <div style={{ width: '0.5px', backgroundColor: '#383838', flexShrink: 0, alignSelf: 'stretch' }} />
+
+        {/* ── Right panel ── */}
+        <div style={{ flex: 1, padding: '18px 26px 40px', minWidth: 0 }}>
+
+          {/* Tabs + action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', gap: '12px', flexWrap: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+              <span style={{ fontSize: '12px', color: '#FFFFFF', whiteSpace: 'nowrap' }}>Not in dictionary{results ? ` (${results.oovWords.length})` : ''}</span>
+              <span style={{ fontSize: '12px', color: '#FFFFFF', opacity: 0.4, whiteSpace: 'nowrap' }}>In dictionary</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <button
+                onClick={handleSubmitFlagged}
+                disabled={status !== 'done' || !results || results.oovWords.length === 0}
+                style={{
+                  borderRadius: '5px', padding: '8px 16px', border: 'none',
+                  fontSize: '14px', cursor: 'pointer',
+                  backgroundColor: (status === 'done' && results && results.oovWords.length > 0) ? '#FFFFFF' : '#2A2A2A',
+                  color: (status === 'done' && results && results.oovWords.length > 0) ? '#000000' : '#666666',
+                }}
+              >
+                Request Pronunciation
+              </button>
+              <button
+                onClick={() => window.open('/shared', '_blank')}
+                disabled={status !== 'done' || !results || results.oovWords.length === 0}
+                style={{
+                  background: 'none', border: 'none', color: '#7C7C7C', fontSize: '14px', cursor: 'pointer',
+                  opacity: (status !== 'done' || !results || results.oovWords.length === 0) ? 0.4 : 1,
+                }}
+              >
+                Share
               </button>
             </div>
           </div>
 
-          {/* History */}
-          <HistoryPanel
-            history={history}
-            expanded={historyExpanded}
-            onToggleExpanded={() => setHistoryExpanded(e => !e)}
-            onRestore={handleRestore}
-          />
-        </div>
+          {/* Horizontal divider */}
+          <div style={{ height: '0.5px', backgroundColor: '#383838', marginBottom: '20px' }} />
 
-        {/* ── Right column: results ── */}
-        <div>
           {status === 'error' && (
             <div
-              className="rounded-2xl px-4 py-3 text-sm mb-4"
+              className="rounded-[5px] px-4 py-3 text-sm mb-4"
               style={{ backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171' }}
             >
               {error || scriptError}
@@ -943,143 +1035,90 @@ function ResearchPage() {
           )}
 
           {isBusy && (
-            <div className="rounded-2xl p-6 animate-pulse" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+            <div className="rounded-[5px] p-6 animate-pulse" style={{ backgroundColor: '#141414', border: '1px solid #2A2A2A' }}>
               <div className="flex items-center gap-8">
                 <div className="shrink-0 text-center">
-                  <div className="h-12 w-16 rounded-lg mb-2" style={{ backgroundColor: 'var(--surface-3)' }} />
-                  <div className="h-3 w-12 rounded" style={{ backgroundColor: 'var(--surface-3)' }} />
+                  <div className="h-12 w-16 rounded-lg mb-2" style={{ backgroundColor: '#1f1f1f' }} />
+                  <div className="h-3 w-12 rounded" style={{ backgroundColor: '#1f1f1f' }} />
                 </div>
-                <div className="h-16 w-px shrink-0" style={{ backgroundColor: 'var(--border-subtle)' }} />
+                <div className="h-16 w-px shrink-0" style={{ backgroundColor: '#383838' }} />
                 <div className="flex-1 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     {[...Array(4)].map((_, i) => (
-                      <div key={i} className="h-4 rounded" style={{ backgroundColor: 'var(--surface-3)' }} />
+                      <div key={i} className="h-4 rounded" style={{ backgroundColor: '#1f1f1f' }} />
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="mt-5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--surface-3)' }} />
+              <div className="mt-5 h-1.5 rounded-full" style={{ backgroundColor: '#1f1f1f' }} />
             </div>
           )}
 
           {status === 'done' && results && !isBusy && (
             <div className="space-y-4">
 
-              {/* Summary card */}
-              <div className="rounded-2xl p-6" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                <div className="flex items-center gap-8">
-                  <div className="shrink-0 text-center">
-                    <div className={`text-5xl font-bold leading-none tabular-nums ${coverageColor}`}>
-                      {results.coveragePct.toFixed(1)}<span className="text-3xl font-semibold">%</span>
-                    </div>
-                    <div className="mt-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>covered</div>
-                  </div>
-                  <div className="h-16 w-px shrink-0" style={{ backgroundColor: 'var(--border-subtle)' }} />
-                  <dl className="grid flex-1 grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                    <Stat label="Total tokens" value={results.totalTokens.toLocaleString()} />
-                    <Stat label="Unique words" value={results.uniqueWordCount.toLocaleString()} />
-                    <Stat label="OOV words" value={results.oovWords.length.toLocaleString()} warn={results.oovWords.length > 0} />
-                    <Stat label="OOV tokens" value={results.oovTokenCount.toLocaleString()} warn={results.oovTokenCount > 0} />
-                  </dl>
+              {/* Compact stats strip */}
+              <div style={{ display: 'flex', gap: '40px', paddingBottom: '16px', borderBottom: '0.5px solid #383838', marginBottom: '4px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Total words</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{results.totalTokens.toLocaleString()}</div>
                 </div>
-                <div className="mt-5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--surface-4)' }}>
-                  <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${results.coveragePct}%` }} />
+                <div>
+                  <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Not in dictionary</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: results.oovWords.length > 0 ? '#f87171' : '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{results.oovWords.length.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>In dictionary</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{(results.uniqueWordCount - results.oovWords.length).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Coverage</div>
+                  <div className={`text-lg font-bold tabular-nums ${coverageColor}`}>{results.coveragePct.toFixed(1)}%</div>
                 </div>
               </div>
 
               {/* OOV list */}
               {results.oovWords.length > 0 ? (
-                <div className="overflow-hidden rounded-2xl" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-                  <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <h2 className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text-emphasis)' }}>
-                          Out-of-vocabulary words
-                          <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>
-                            {results.oovWords.length}
-                          </span>
-                        </h2>
-                        {flaggedWords.size > 0 && (
-                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {flaggedWords.size} flagged
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <a
-                          href="https://docs.rime.ai/docs/custom-pronunciation#the-rime-phonetic-alphabet"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs transition hover:opacity-70"
-                          style={{ color: 'var(--text-muted)', textDecoration: 'none', whiteSpace: 'nowrap' }}
-                        >
-                          Phonetic guide ↗
-                        </a>
-                        {results.oovWords.some(w => submittedWords.has(w.word)) && (
-                          <button
-                            onClick={handleCancelAllFixes}
-                            className="rounded-lg px-2.5 py-1 text-xs font-medium transition hover:opacity-80"
-                            style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', backgroundColor: 'transparent', whiteSpace: 'nowrap' }}
-                          >
-                            Cancel all
-                          </button>
-                        )}
-                        {flaggedWords.size > 0 && (
-                          <button
-                            onClick={handleSubmitFlagged}
-                            className="rounded-lg px-2.5 py-1 text-xs font-medium transition hover:opacity-80"
-                            style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-3)', whiteSpace: 'nowrap' }}
-                          >
-                            Submit {flaggedWords.size} correction{flaggedWords.size !== 1 ? 's' : ''}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    {results.oovWords.map(({ word, frequency }, i) => (
-                      <OovRow
-                        key={word}
-                        word={word}
-                        frequency={frequency}
-                        isFirst={i === 0}
-                        phonetic={phonetics[word]}
-                        phoneticsLoading={phoneticsLoading && !phonetics[word]}
-                        loadingAudio={loadingAudio}
-                        playingAudio={playingAudio}
-                        onPlay={handlePlay}
-                        selectedVoice={selectedVoice}
-                        isSubmitted={submittedWords.has(word)}
-                        isFlagged={flaggedWords.has(word)}
-                        onFlag={handleFlag}
-                        onCancelFix={handleCancelFix}
-                        addToast={addToast}
-                      />
-                    ))}
-                  </div>
+                <div>
+                  {results.oovWords.map(({ word, frequency }, i) => (
+                    <OovRow
+                      key={word}
+                      word={word}
+                      frequency={frequency}
+                      isFirst={i === 0}
+                      phonetic={phonetics[word]}
+                      phoneticsLoading={phoneticsLoading && !phonetics[word]}
+                      loadingAudio={loadingAudio}
+                      playingAudio={playingAudio}
+                      onPlay={handlePlay}
+                      selectedVoice={selectedVoice}
+                      isSubmitted={submittedWords.has(word)}
+                      isFlagged={flaggedWords.has(word)}
+                      onFlag={handleFlag}
+                      onCancelFix={handleCancelFix}
+                      addToast={addToast}
+                    />
+                  ))}
                 </div>
               ) : (
-                <div
-                  className="rounded-2xl px-6 py-10 text-center"
-                  style={{ backgroundColor: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}
-                >
-                  <p className="text-lg font-semibold" style={{ color: '#34d399' }}>Full coverage</p>
-                  <p className="mt-1 text-sm" style={{ color: 'rgba(52,211,153,0.7)' }}>Every word in your input is in Rime's dictionary.</p>
+                <div className="px-6 py-10 text-center">
+                  <p className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>Full coverage</p>
+                  <p className="mt-1 text-sm" style={{ color: '#7C7C7C' }}>Every word in your input is in Rime's dictionary.</p>
                 </div>
               )}
             </div>
           )}
 
           {status === 'idle' && !isBusy && (
-            <div className="rounded-2xl px-6 py-12 text-center" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
-              <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--surface-3)' }}>
+            <div className="rounded-[5px] px-6 py-12 text-center" style={{ backgroundColor: '#141414', border: '1px solid #2A2A2A' }}>
+              <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-[5px]" style={{ backgroundColor: '#1f1f1f' }}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <path d="M9 1L2 4.5v5C2 13.5 5.1 16.8 9 17.5c3.9-.7 7-4 7-8v-5L9 1z" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinejoin="round" />
-                  <path d="M6 9l2 2 4-4" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M9 1L2 4.5v5C2 13.5 5.1 16.8 9 17.5c3.9-.7 7-4 7-8v-5L9 1z" stroke="#A5A5A5" strokeWidth="1.4" strokeLinejoin="round" />
+                  <path d="M6 9l2 2 4-4" stroke="#A5A5A5" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No results yet</p>
-              <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-sm font-medium" style={{ color: '#BBBBBB' }}>No results yet</p>
+              <p className="mt-1 text-xs" style={{ color: '#A5A5A5' }}>
                 Generate a sample or paste your own text,<br />then run a coverage check.
               </p>
             </div>
@@ -1091,6 +1130,51 @@ function ResearchPage() {
 
 {/* ── Toasts ── */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* ── Request Confirmation Modal ── */}
+      {showRequestConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '400px', borderRadius: '10px', padding: '32px',
+            backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '50%', margin: '0 auto 16px',
+              backgroundColor: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10l3.5 3.5L15 7" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-emphasis)', marginBottom: '8px' }}>
+              Words Requested
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
+              {results?.oovWords.length} word{(results?.oovWords.length ?? 0) !== 1 ? 's' : ''} sent to the annotation team for pronunciation review.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowRequestConfirm(false)}
+                style={{ padding: '8px 16px', borderRadius: '5px', fontSize: '13px', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                Back to Check Coverage
+              </button>
+              <button
+                onClick={() => { setShowRequestConfirm(false); navigate({ to: '/my-words' }) }}
+                style={{ padding: '8px 16px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, border: 'none', backgroundColor: '#ffffff', color: '#000000', cursor: 'pointer' }}
+              >
+                View My Words →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1209,21 +1293,20 @@ function VoicePicker({
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition hover:opacity-80"
-        style={{ border: '1px solid var(--border-default)', color: 'var(--text-secondary)', backgroundColor: 'var(--surface-2)', maxWidth: '140px' }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+          padding: '8px 12px', borderRadius: '5px',
+          backgroundColor: '#161616', border: '0.5px solid #434343',
+          color: '#FFFFFF', fontSize: '12px', cursor: 'pointer',
+        }}
         title="Select preview voice"
       >
-        {/* Waveform icon */}
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }}>
-          <rect x="0" y="4" width="1.5" height="3" rx="0.75" fill="currentColor" opacity="0.5" />
-          <rect x="2.5" y="2.5" width="1.5" height="6" rx="0.75" fill="currentColor" opacity="0.7" />
-          <rect x="5" y="0" width="1.5" height="11" rx="0.75" fill="currentColor" />
-          <rect x="7.5" y="2.5" width="1.5" height="6" rx="0.75" fill="currentColor" opacity="0.7" />
-        </svg>
-        <span className="truncate flex-1">{selected}</span>
-        {/* Chevron */}
-        <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
-          <path d={open ? 'M1.5 6L4.5 3L7.5 6' : 'M1.5 3L4.5 6L7.5 3'} stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        <span style={{ fontWeight: 500, flexShrink: 0 }}>{selected}</span>
+        <span style={{ flex: 1, color: '#A5A5A5', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+          {selectedEntry ? `${selectedEntry.dialect} · ${selectedEntry.gender} · ${selectedEntry.country}` : ''}
+        </span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+          <path d={open ? 'M2 6.5L5 3.5L8 6.5' : 'M2 3.5L5 6.5L8 3.5'} stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
@@ -1231,13 +1314,13 @@ function VoicePicker({
         <div
           style={{
             position: 'absolute',
-            bottom: 'calc(100% + 6px)',
+            top: 'calc(100% + 6px)',
             left: 0,
             zIndex: 100,
             width: '360px',
-            backgroundColor: 'var(--surface-2)',
-            border: '1px solid var(--border-default)',
-            borderRadius: '14px',
+            backgroundColor: '#1a1a1a',
+            border: '1px solid #383838',
+            borderRadius: '8px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             overflow: 'hidden',
           }}
@@ -1532,257 +1615,201 @@ function OovRow({
     : recState === 'analyzing' ? 'Getting pronunciation… (click to cancel)'
     : 'Recording captured — click to discard'
 
+  const pipe = <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2A2A2A', flexShrink: 0 }} />
+
   return (
     <div
       style={{
-        borderTop: isFirst ? undefined : '1px solid var(--border-subtle)',
-        padding: '10px 20px',
-        borderLeft: isSubmitted ? '3px solid #34d399' : isFlagged ? '3px solid #fbbf24' : '3px solid transparent',
-        opacity: isSubmitted ? 0.6 : 1,
-        transition: 'opacity 0.2s ease, border-left-color 0.2s ease',
+        borderTop: isFirst ? undefined : '0.5px solid #2A2A2A',
+        padding: '7px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        minWidth: 0,
       }}
     >
-      {/* Row 1: word + listen controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-        {/* Word */}
-        <span
-          style={{
-            fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'var(--text-emphasis)',
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-          title={word}
-        >
-          {word}
-        </span>
-        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-          ×{frequency.toLocaleString()}
-        </span>
+      {/* Word + frequency */}
+      <span
+        style={{
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: '13px',
+          fontWeight: 700,
+          color: '#FFFFFF',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          maxWidth: '140px',
+        }}
+        title={word}
+      >
+        {word}
+      </span>
+      <span style={{ fontSize: '11px', color: '#7C7C7C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+        ×{frequency.toLocaleString()}
+      </span>
 
-        {/* Listen controls — pushed right */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          {/* Current — icon only, secondary */}
-          <button
-            onClick={() => onPlay(defaultKey, () => fetchWordAudio(word, RIME_API_KEY, selectedVoice))}
-            title={`Hear current pronunciation of "${word}"`}
-            style={{
-              width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--surface-3)', color: playingAudio === defaultKey ? '#fbbf24' : 'var(--text-muted)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      {pipe}
+
+      {/* Current play — small dark circle */}
+      <button
+        onClick={() => onPlay(defaultKey, () => fetchWordAudio(word, RIME_API_KEY, selectedVoice))}
+        title={`Hear current pronunciation of "${word}"`}
+        style={{
+          width: '22px', height: '22px', borderRadius: '50%',
+          border: '0.5px solid #383838', backgroundColor: '#161616',
+          color: playingAudio === defaultKey ? '#FFFFFF' : '#7C7C7C',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}
+      >
+        {loadingAudio === defaultKey
+          ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
+          : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
+        }
+      </button>
+
+      {/* Suggested play button */}
+      <PlayButton
+        label={recState === 'done' ? 'Recording' : isEdited ? 'Preview edit' : 'Suggested'}
+        isLoading={phoneticsLoading || recState === 'analyzing' || loadingAudio === suggestedKey}
+        isPlaying={recState === 'done' ? recordingPlayback : playingAudio === suggestedKey}
+        disabled={!hasPhonetic && recState === 'idle'}
+        accent={recState === 'idle' && !isEdited}
+        title={
+          recState === 'done' ? 'Play back your recording'
+          : recState === 'analyzing' ? 'Getting pronunciation…'
+          : hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay} with voice: ${selectedVoice}`
+          : phoneticsLoading ? 'Loading…'
+          : 'No phonetic available'
+        }
+        onClick={() => {
+          if (recState === 'done') { handlePlayRecording(); return }
+          if (recState === 'analyzing') return
+          if (!hasPhonetic) return
+          onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
+        }}
+      />
+
+      {pipe}
+
+      {/* IPA — always shown, dash when not loaded */}
+      <span style={{ fontSize: '11px', color: '#7C7C7C', flexShrink: 0 }}>IPA</span>
+      <span style={{ fontSize: '11px', color: '#9C9C9C', fontFamily: 'Georgia, "Times New Roman", serif', flexShrink: 0 }}>
+        {hasPhonetic ? `/${phonetic!.ipa}/` : '/–/'}
+      </span>
+
+      <span style={{ fontSize: '11px', color: '#383838', flexShrink: 0 }}>·</span>
+
+      {/* Rime — always shown, editable when loaded */}
+      <span style={{ fontSize: '11px', color: '#7C7C7C', flexShrink: 0 }}>Rime</span>
+      {hasPhonetic ? (
+        <>
+          <input
+            value={`{${activeRimeDisplay}}`}
+            onChange={e => {
+              const raw = e.target.value.replace(/^\{/, '').replace(/\}$/, '')
+              setEditedRime(raw)
             }}
-            className="hover:opacity-80 transition"
-          >
-            {loadingAudio === defaultKey
-              ? <span className="h-2.5 w-2.5 animate-spin rounded-full border border-[var(--border-strong)] border-t-[var(--text-muted)]" />
-              : <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
-            }
-          </button>
-
-          {/* Suggested — labeled, primary listen action */}
-          {(hasPhonetic || phoneticsLoading) && (
-            <PlayButton
-              label={recState === 'done' ? 'Recording' : isEdited ? 'Preview edit' : 'Suggested'}
-              isLoading={recState === 'analyzing' || loadingAudio === suggestedKey}
-              isPlaying={recState === 'done' ? recordingPlayback : playingAudio === suggestedKey}
-              disabled={!hasPhonetic && recState === 'idle'}
-              accent={recState === 'idle' && !isEdited}
-              title={
-                recState === 'done' ? 'Play back your recording'
-                : recState === 'analyzing' ? 'Getting pronunciation…'
-                : hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay} with voice: ${selectedVoice}`
-                : 'Loading…'
-              }
-              onClick={() => {
-                if (recState === 'done') { handlePlayRecording(); return }
-                if (recState === 'analyzing') return
-                if (!hasPhonetic) return
-                onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
-              }}
-            />
-          )}
-
-          {/* Flag / submitted status button */}
-          {isSubmitted ? (
+            spellCheck={false}
+            title="Rime phonetic encoding"
+            style={{
+              fontSize: '11px',
+              fontFamily: 'ui-monospace, monospace',
+              backgroundColor: 'transparent',
+              border: 'none',
+              borderBottom: isEdited ? '0.5px solid #7C7C7C' : 'none',
+              color: isEdited ? '#FFFFFF' : '#9C9C9C',
+              padding: '0 2px',
+              outline: 'none',
+              minWidth: '32px',
+              width: `${Math.max(32, (activeRimeDisplay.length + 2) * 7 + 10)}px`,
+              flexShrink: 0,
+            }}
+          />
+          {isEdited && (
             <button
-              onClick={() => onCancelFix(word)}
-              title="Correction submitted — click to cancel"
-              style={{
-                fontSize: '11px', borderRadius: '999px', padding: '3px 10px', cursor: 'pointer',
-                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
-                color: '#34d399', backgroundColor: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)',
-                transition: 'all 0.15s ease',
-              }}
-              className="hover:opacity-80 transition"
+              onClick={() => setEditedRime(null)}
+              title="Reset to original"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '14px', height: '14px', color: '#7C7C7C', padding: 0, cursor: 'pointer', flexShrink: 0, backgroundColor: 'transparent', border: 'none' }}
             >
-              <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Submitted
-            </button>
-          ) : (
-            <button
-              onClick={() => onFlag(word)}
-              title={isFlagged ? 'Flagged for correction — click to remove flag' : 'Flag this word for correction'}
-              style={{
-                fontSize: '11px', borderRadius: '999px', padding: '3px 10px', cursor: 'pointer',
-                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
-                transition: 'all 0.15s ease',
-                ...(isFlagged ? {
-                  color: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)',
-                } : {
-                  color: 'var(--text-muted)', backgroundColor: 'transparent', border: '1px solid var(--border-subtle)',
-                }),
-              }}
-              className="hover:opacity-80 transition"
-            >
-              {isFlagged ? (
-                <>
-                  <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Flagged
-                </>
-              ) : 'Needs correction'}
+              <svg width="10" height="10" viewBox="0 0 11 11" fill="none">
+                <path d="M5.5 1A4.5 4.5 0 1 0 10 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M7.5 1h2.5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
           )}
-        </div>
-      </div>
-
-      {/* Row 2: phonetic badges — IPA (read-only) + editable Rime phonetic + mic */}
-      {(phoneticsLoading || hasPhonetic) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '5px', flexWrap: 'wrap' }}>
-          {phoneticsLoading ? (
-            <>
-              <div style={{ height: '18px', width: '80px', borderRadius: '4px', backgroundColor: 'var(--surface-3)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-              <div style={{ height: '18px', width: '64px', borderRadius: '4px', backgroundColor: 'var(--surface-3)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-            </>
-          ) : (
-            <>
-              {/* IPA — read-only */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', userSelect: 'none', flexShrink: 0 }}>IPA:</span>
-              <span
-                style={{
-                  borderRadius: '4px',
-                  padding: '1px 6px',
-                  fontSize: '11.5px',
-                  backgroundColor: 'rgba(139,92,246,0.1)',
-                  border: '1px solid rgba(139,92,246,0.2)',
-                  color: '#a78bfa',
-                  fontFamily: 'Georgia, "Times New Roman", serif',
-                  letterSpacing: '0.01em',
-                  whiteSpace: 'nowrap',
-                }}
-                title="IPA pronunciation"
-              >
-                /{phonetic!.ipa}/
-              </span>
-              </div>
-
-              {/* Rime phonetic — editable inline + mic button */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', userSelect: 'none', flexShrink: 0 }}>Rime:</span>
-                <input
-                  value={activeRimeDisplay}
-                  onChange={e => setEditedRime(e.target.value)}
-                  spellCheck={false}
-                  title="Rime phonetic encoding — supports {phonetic}, spell(WORD), or mixed"
-                  style={{
-                    fontSize: '11.5px',
-                    fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-                    backgroundColor: isEdited ? 'rgba(34,211,238,0.14)' : 'rgba(34,211,238,0.08)',
-                    border: `1px solid ${isEdited ? 'rgba(34,211,238,0.5)' : 'rgba(34,211,238,0.2)'}`,
-                    color: '#67e8f9',
-                    borderRadius: '4px',
-                    padding: '1px 5px',
-                    outline: 'none',
-                    minWidth: '40px',
-                    width: `${Math.max(40, activeRimeDisplay.length * 7.5 + 14)}px`,
-                  }}
-                />
-                {isEdited ? (
-                  <button
-                    onClick={() => setEditedRime(null)}
-                    title="Reset to original"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', color: 'var(--text-muted)', padding: 0, opacity: 0.7 }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                      <path d="M5.5 1A4.5 4.5 0 1 0 10 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                      <path d="M7.5 1h2.5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                ) : (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: 'rgba(103,232,249,0.4)', flexShrink: 0 }}>
-                    <path d="M1.5 8H3l4.5-4.5-1.5-1.5L1.5 6.5V8zM6.5 2l1 1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-
-                {/* Mic button — lives here since it affects the rime spelling */}
-                <button
-                  onClick={handleMicClick}
-                  title={micTitle}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    border: `1px solid ${
-                      recState === 'recording' ? 'rgba(239,68,68,0.5)'
-                      : recState === 'analyzing' ? 'rgba(251,191,36,0.4)'
-                      : recState === 'done' ? 'rgba(52,211,153,0.35)'
-                      : 'var(--border-subtle)'
-                    }`,
-                    backgroundColor:
-                      recState === 'recording' ? 'rgba(239,68,68,0.12)'
-                      : recState === 'analyzing' ? 'rgba(251,191,36,0.1)'
-                      : recState === 'done' ? 'rgba(52,211,153,0.08)'
-                      : 'transparent',
-                    color:
-                      recState === 'recording' ? '#ef4444'
-                      : recState === 'analyzing' ? '#fbbf24'
-                      : recState === 'done' ? '#34d399'
-                      : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    boxShadow: recState === 'recording' ? '0 0 0 3px rgba(239,68,68,0.15)' : undefined,
-                    animation: recState === 'recording' ? 'micPulse 1.2s ease-in-out infinite' : undefined,
-                  }}
-                >
-                  {recState === 'analyzing' ? (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
-                      <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="11 6" strokeLinecap="round"/>
-                    </svg>
-                  ) : recState === 'done' ? (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <rect x="3.5" y="1" width="3" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                      <path d="M1.5 5a3.5 3.5 0 0 0 7 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                      <line x1="5" y1="8.5" x2="5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    </svg>
-                  )}
-                </button>
-
-                {/* Inline recording status label */}
-                {recState === 'recording' && (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', color: '#ef4444' }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', animation: 'micPulse 1.2s ease-in-out infinite' }} />
-                    Recording…
-                  </span>
-                )}
-                {recState === 'analyzing' && (
-                  <span style={{ fontSize: '10.5px', color: '#fbbf24' }}>Getting pronunciation…</span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        </>
+      ) : (
+        <span style={{ fontSize: '11px', color: '#9C9C9C', fontFamily: 'ui-monospace, monospace', flexShrink: 0 }}>{'{–}'}</span>
       )}
+
+      {/* Recording status */}
+      {recState === 'recording' && (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10.5px', color: '#9C9C9C', flexShrink: 0 }}>
+          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#9C9C9C', display: 'inline-block', animation: 'micPulse 1.2s ease-in-out infinite' }} />
+          Recording…
+        </span>
+      )}
+      {recState === 'analyzing' && (
+        <span style={{ fontSize: '10.5px', color: '#7C7C7C', flexShrink: 0 }}>Analyzing…</span>
+      )}
+
+      {/* Right side — pushed right */}
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0', flexShrink: 0 }}>
+        {/* Record pill */}
+        <button
+          onClick={handleMicClick}
+          title={micTitle}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            fontSize: '11px', padding: '4px 10px',
+            borderRadius: '5px',
+            border: `0.5px solid ${recState === 'idle' ? '#383838' : '#7C7C7C'}`,
+            backgroundColor: 'transparent',
+            color: recState === 'idle' ? '#7C7C7C' : '#FFFFFF',
+            cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+          }}
+        >
+          {recState === 'analyzing' ? (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+              <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="11 6" strokeLinecap="round"/>
+            </svg>
+          ) : recState === 'recording' ? (
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#FFFFFF', display: 'block', animation: 'micPulse 1.2s ease-in-out infinite' }} />
+          ) : recState === 'done' ? (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          ) : (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <rect x="3.5" y="1" width="3" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M1.5 5a3.5 3.5 0 0 0 7 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <line x1="5" y1="8.5" x2="5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          )}
+          {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing' : 'Recorded'}
+        </button>
+
+        {/* Pipe + notes icon */}
+        <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2A2A2A', flexShrink: 0, margin: '0 10px' }} />
+        <button
+          onClick={() => navigator.clipboard.writeText(word)}
+          title="Copy word"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '22px', height: '22px', borderRadius: '5px',
+            border: 'none', backgroundColor: 'transparent',
+            color: '#7C7C7C', cursor: 'pointer', flexShrink: 0,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1"/>
+            <line x1="3.5" y1="4.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+            <line x1="3.5" y1="6.5" x2="7.5" y2="6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+            <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }
@@ -1832,7 +1859,7 @@ function BulkCorrectionModal({
         </div>
 
         {/* Word list */}
-        <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+        <div className="rounded-[5px] px-4 py-3 mb-4" style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{words.length} word{words.length !== 1 ? 's' : ''}</p>
           <div className="flex flex-wrap gap-1.5">
             {words.map(w => (
@@ -1929,7 +1956,7 @@ function CorrectionModal({
         </div>
 
         {/* Word display */}
-        <div className="rounded-xl px-4 py-3 mb-4" style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+        <div className="rounded-[5px] px-4 py-3 mb-4" style={{ backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Word</p>
           <p className="font-mono text-base font-semibold" style={{ color: 'var(--text-emphasis)' }}>{word}</p>
           {phonetic ? (
@@ -2080,7 +2107,7 @@ function HistoryItem({ entry, onRestore }: { entry: HistoryEntry; onRestore: (e:
   const isTruncated = entry.text.length > PREVIEW_LEN
 
   return (
-    <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+    <div className="rounded-[5px] p-3" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <p className="text-xs font-medium leading-snug" style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}>
           {entry.label}
@@ -2121,7 +2148,7 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5 px-0.5">
-        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)', letterSpacing: '0.07em' }}>History</span>
+        <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>Project</span>
         {history.length > 1 && (
           <button
             onClick={onToggleExpanded}

@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute, Link, useRouterState } from '@tanstack/react-router'
 
 import appCss from '../styles.css?url'
 
@@ -111,20 +111,19 @@ function IconShield() {
 
 type NavItem = {
   label: string
+  href?: string
   icon?: React.ReactNode
-  active?: boolean
   admin?: boolean
+  badge?: boolean
   children?: NavItem[]
   expanded?: boolean
 }
 
-function NavLink({
-  item,
-  depth = 0,
-}: {
-  item: NavItem
-  depth?: number
-}) {
+function NavLink({ item, depth = 0 }: { item: NavItem; depth?: number }) {
+  const routerState = useRouterState()
+  const currentPath = routerState.location.pathname
+  const isActive = item.href ? (item.href === '/' ? currentPath === '/' : currentPath.startsWith(item.href)) : false
+
   const baseStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
@@ -132,9 +131,9 @@ function NavLink({
     padding: depth === 0 ? '5px 8px' : '4px 8px 4px 28px',
     borderRadius: '6px',
     fontSize: '13px',
-    fontWeight: item.active ? 500 : 400,
-    color: item.active ? 'var(--text-emphasis)' : 'var(--text-secondary)',
-    backgroundColor: item.active ? 'var(--surface-3)' : 'transparent',
+    fontWeight: isActive ? 500 : 400,
+    color: isActive ? 'var(--text-emphasis)' : 'var(--text-secondary)',
+    backgroundColor: isActive ? 'var(--surface-3)' : 'transparent',
     cursor: 'pointer',
     textDecoration: 'none',
     transition: 'background-color 0.1s, color 0.1s',
@@ -143,31 +142,40 @@ function NavLink({
     textAlign: 'left',
   }
 
+  const inner = (
+    <>
+      {item.icon && (
+        <span style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-muted)', flexShrink: 0 }}>
+          {item.icon}
+        </span>
+      )}
+      <span style={{ flex: 1 }}>{item.label}</span>
+      {item.badge && (
+        <span style={{
+          width: '7px', height: '7px', borderRadius: '50%',
+          backgroundColor: '#f87171', flexShrink: 0,
+          boxShadow: '0 0 4px rgba(248,113,113,0.5)',
+        }} />
+      )}
+      {item.admin && (
+        <span style={{
+          fontSize: '9px', fontWeight: 600, letterSpacing: '0.04em',
+          textTransform: 'uppercase', color: 'var(--text-muted)',
+          border: '1px solid var(--border-default)', borderRadius: '3px', padding: '1px 4px', flexShrink: 0,
+        }}>
+          admin
+        </span>
+      )}
+    </>
+  )
+
   return (
     <>
-      <button style={baseStyle}>
-        {item.icon && (
-          <span style={{ color: item.active ? 'var(--text-primary)' : 'var(--text-muted)', flexShrink: 0 }}>
-            {item.icon}
-          </span>
-        )}
-        <span style={{ flex: 1 }}>{item.label}</span>
-        {item.admin && (
-          <span style={{
-            fontSize: '9px',
-            fontWeight: 600,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border-default)',
-            borderRadius: '3px',
-            padding: '1px 4px',
-            flexShrink: 0,
-          }}>
-            admin
-          </span>
-        )}
-      </button>
+      {item.href && item.href !== '#' ? (
+        <Link to={item.href as any} style={baseStyle}>{inner}</Link>
+      ) : (
+        <button style={baseStyle}>{inner}</button>
+      )}
       {item.children && item.expanded && (
         <div>
           {item.children.map(child => (
@@ -244,9 +252,9 @@ function Sidebar() {
               icon: <IconShield />,
               expanded: true,
               children: [
-                { label: 'Research', active: true },
-                { label: 'Monitoring' },
-                { label: 'Corrections', admin: true },
+                { label: 'Research', href: '/' },
+                { label: 'Monitoring', href: '/my-words' },
+                { label: 'Corrections', href: '/corrections', admin: true, badge: true },
               ],
             },
           ]}
@@ -280,11 +288,11 @@ function Sidebar() {
               flexShrink: 0,
             }}
           >
-            P
+            R
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-emphasis)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              patrick@rime.ai
+              ramona@rime.ai
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Rime.ai</div>
           </div>
