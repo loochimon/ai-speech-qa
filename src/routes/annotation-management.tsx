@@ -263,7 +263,7 @@ function AnnotationManagementPage() {
                 {' '}approved
               </span>
               {hasUnapproved && (
-                <button onClick={handleApproveAll} style={{ padding: '6px 16px', borderRadius: '5px', fontSize: '12px', fontWeight: 600, border: 'none', backgroundColor: '#2dd4bf', color: '#000', cursor: 'pointer' }}>
+                <button onClick={handleApproveAll} style={{ padding: '6px 16px', borderRadius: '5px', fontSize: '12px', fontWeight: 600, border: 'none', backgroundColor: '#ffffff', color: '#000', cursor: 'pointer' }}>
                   Approve All Submitted
                 </button>
               )}
@@ -521,7 +521,7 @@ function ReviewWordCard({ word, annotator, isHighlighted, cardRef, onClick, onAp
                 {isApproved ? `✓ Approved: {${word.rime}}` : word.status === 'Updated' ? `Submitted: {${word.rime}}` : '✗ Rejected'}
               </div>
               {!isApproved && word.status === 'Updated' && (
-                <button onClick={e => { e.stopPropagation(); onApprove(word.word) }} style={{ padding: '8px 20px', borderRadius: '5px', fontSize: '12px', fontWeight: 600, border: 'none', backgroundColor: '#2dd4bf', color: '#000', cursor: 'pointer', flexShrink: 0 }}>
+                <button onClick={e => { e.stopPropagation(); onApprove(word.word) }} style={{ padding: '8px 20px', borderRadius: '5px', fontSize: '12px', fontWeight: 600, border: 'none', backgroundColor: '#ffffff', color: '#000', cursor: 'pointer', flexShrink: 0 }}>
                   Approve ✓
                 </button>
               )}
