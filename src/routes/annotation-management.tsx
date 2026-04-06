@@ -21,9 +21,14 @@ interface Annotator { id: string; name: string; initials: string; color: string 
 // ─── mock data ────────────────────────────────────────────────────────────────
 
 const ANNOTATORS: Annotator[] = [
-  { id: 'sofia',  name: 'Sofia Chen',  initials: 'SC', color: '#a78bfa' },
-  { id: 'marcus', name: 'Marcus Webb', initials: 'MW', color: '#34d399' },
-  { id: 'priya',  name: 'Priya Nair',  initials: 'PN', color: '#fbbf24' },
+  { id: 'sofia',   name: 'Sofia Chen',    initials: 'SC', color: '#9990CC' },
+  { id: 'marcus',  name: 'Marcus Webb',   initials: 'MW', color: '#BA82C0' },
+  { id: 'priya',   name: 'Priya Nair',    initials: 'PN', color: '#7FA8CC' },
+  { id: 'alex',    name: 'Alex Kim',      initials: 'AK', color: '#4DD4C4' },
+  { id: 'jordan',  name: 'Jordan Lee',    initials: 'JL', color: '#7DC87A' },
+  { id: 'casey',   name: 'Casey Park',    initials: 'CP', color: '#B8D87A' },
+  { id: 'mia',     name: 'Mia Santos',    initials: 'MS', color: '#D4A07A' },
+  { id: 'riley',   name: 'Riley Chen',    initials: 'RC', color: '#D480BC' },
 ]
 
 const ALL_WORDS: ManagedWord[] = [
