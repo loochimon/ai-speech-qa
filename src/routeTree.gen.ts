@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SharedRouteImport } from './routes/shared'
 import { Route as MyWordsRouteImport } from './routes/my-words'
 import { Route as CorrectionsRouteImport } from './routes/corrections'
+import { Route as AnnotationManagementRouteImport } from './routes/annotation-management'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -30,6 +31,11 @@ const CorrectionsRoute = CorrectionsRouteImport.update({
   path: '/corrections',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnnotationManagementRoute = AnnotationManagementRouteImport.update({
+  id: '/annotation-management',
+  path: '/annotation-management',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
@@ -44,6 +50,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/annotation-management': typeof AnnotationManagementRoute
   '/corrections': typeof CorrectionsRoute
   '/my-words': typeof MyWordsRoute
   '/shared': typeof SharedRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/annotation-management': typeof AnnotationManagementRoute
   '/corrections': typeof CorrectionsRoute
   '/my-words': typeof MyWordsRoute
   '/shared': typeof SharedRoute
@@ -59,21 +67,42 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/annotation-management': typeof AnnotationManagementRoute
   '/corrections': typeof CorrectionsRoute
   '/my-words': typeof MyWordsRoute
   '/shared': typeof SharedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/corrections' | '/my-words' | '/shared'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/annotation-management'
+    | '/corrections'
+    | '/my-words'
+    | '/shared'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/corrections' | '/my-words' | '/shared'
-  id: '__root__' | '/' | '/about' | '/corrections' | '/my-words' | '/shared'
+  to:
+    | '/'
+    | '/about'
+    | '/annotation-management'
+    | '/corrections'
+    | '/my-words'
+    | '/shared'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/annotation-management'
+    | '/corrections'
+    | '/my-words'
+    | '/shared'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AnnotationManagementRoute: typeof AnnotationManagementRoute
   CorrectionsRoute: typeof CorrectionsRoute
   MyWordsRoute: typeof MyWordsRoute
   SharedRoute: typeof SharedRoute
@@ -102,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CorrectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/annotation-management': {
+      id: '/annotation-management'
+      path: '/annotation-management'
+      fullPath: '/annotation-management'
+      preLoaderRoute: typeof AnnotationManagementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/about': {
       id: '/about'
       path: '/about'
@@ -122,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AnnotationManagementRoute: AnnotationManagementRoute,
   CorrectionsRoute: CorrectionsRoute,
   MyWordsRoute: MyWordsRoute,
   SharedRoute: SharedRoute,
