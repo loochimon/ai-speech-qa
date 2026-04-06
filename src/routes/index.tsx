@@ -139,10 +139,21 @@ interface HistoryEntry {
 
 // ─── component ────────────────────────────────────────────────────────────────
 
+const RESEARCH_STORAGE_KEY = 'rime_research_session'
+
+function loadSession(): { text: string; results: Results | null; phonetics: Record<string, PhoneticResult>; submittedWords: string[]; flaggedWords: string[] } | null {
+  try {
+    const raw = localStorage.getItem(RESEARCH_STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch { return null }
+}
+
 function ResearchPage() {
-  const [text, setText] = useState('')
-  const [status, setStatus] = useState<'idle' | 'checking' | 'done' | 'error'>('idle')
-  const [results, setResults] = useState<Results | null>(null)
+  const _session = loadSession()
+  const [text, setText] = useState(_session?.text ?? '')
+  const [status, setStatus] = useState<'idle' | 'checking' | 'done' | 'error'>(_session?.results ? 'done' : 'idle')
+  const [results, setResults] = useState<Results | null>(_session?.results ?? null)
   const [error, setError] = useState('')
 
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null)
@@ -154,11 +165,11 @@ function ResearchPage() {
   const [generatingScript, setGeneratingScript] = useState(false)
   const [scriptError, setScriptError] = useState('')
 
-  const [phonetics, setPhonetics] = useState<Record<string, PhoneticResult>>({})
+  const [phonetics, setPhonetics] = useState<Record<string, PhoneticResult>>(_session?.phonetics ?? {})
   const [phoneticsLoading, setPhonleticsLoading] = useState(false)
 
-  const [submittedWords, setSubmittedWords] = useState<Set<string>>(new Set())
-  const [flaggedWords, setFlaggedWords] = useState<Set<string>>(new Set())
+  const [submittedWords, setSubmittedWords] = useState<Set<string>>(new Set(_session?.submittedWords ?? []))
+  const [flaggedWords, setFlaggedWords] = useState<Set<string>>(new Set(_session?.flaggedWords ?? []))
 
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -169,6 +180,20 @@ function ResearchPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [textareaHeight, setTextareaHeight] = useState(280)
   const dragBarRef = useRef<{ startY: number; startH: number } | null>(null)
+  const [resultsStale, setResultsStale] = useState(false)
+
+  // Persist session so navigating away and back restores state
+  useEffect(() => {
+    try {
+      localStorage.setItem(RESEARCH_STORAGE_KEY, JSON.stringify({
+        text,
+        results,
+        phonetics,
+        submittedWords: Array.from(submittedWords),
+        flaggedWords: Array.from(flaggedWords),
+      }))
+    } catch { /* quota exceeded — ignore */ }
+  }, [text, results, phonetics, submittedWords, flaggedWords, resultsStale])
 
   const handleDragBarMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -228,12 +253,9 @@ function ResearchPage() {
 
   const handleTextChange = useCallback((val: string) => {
     setText(val)
-    setStatus('idle')
-    setResults(null)
     setError('')
-    setPhonetics({})
-    setPhonleticsLoading(false)
-    setSubmittedWords(new Set())
+    // Keep existing results visible but mark as stale so user knows to re-run
+    setResultsStale(true)
   }, [])
 
   const readFile = useCallback((file: File) => {
@@ -284,7 +306,20 @@ function ResearchPage() {
     setFlaggedWords(new Set())
     try {
       const uniqueWords = Array.from(freq.keys())
-      const oovList = await fetchOov(uniqueWords, RIME_API_KEY)
+      // TODO: remove mock fallback once OOV API is deployed
+      let oovList: string[]
+      try {
+        oovList = await fetchOov(uniqueWords, RIME_API_KEY)
+      } catch {
+        // API still down — surface every word that looks domain-specific as OOV
+        const mockOov = ['Lisinopril','Semaglutide','Ozempic','Metformin','Wegovy',
+          'Omeprazole','Atorvastatin','Trazodone','Gabapentin','Escitalopram',
+          'Sertraline','Furosemide','Amlodipine','Losartan','Pantoprazole']
+        oovList = uniqueWords.filter(w =>
+          mockOov.some(m => m.toLowerCase() === w.toLowerCase()) ||
+          w.length > 9
+        )
+      }
       const oovSet = new Set(oovList.map(w => w.toLowerCase()))
       const oovWords: OovWord[] = uniqueWords
         .filter(w => oovSet.has(w.toLowerCase()))
@@ -298,6 +333,7 @@ function ResearchPage() {
       const newResults: Results = { totalTokens, uniqueWordCount: uniqueWords.length, oovWords, oovTokenCount, coveragePct }
       setResults(newResults)
       setStatus('done')
+      setResultsStale(false)
       const entryLabel = label?.trim() ||
         textToCheck.split('\n').find(l => l.trim())?.trim().slice(0, 72) ||
         'Untitled'
@@ -764,8 +800,8 @@ function ResearchPage() {
     <div style={{ minHeight: '100vh', backgroundColor: '#0D0D0D' }}>
 
       {/* ── Title row ── */}
-      <div style={{ padding: '24px 26px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ fontWeight: 700, fontSize: '32px', color: '#FFFFFF', margin: 0, letterSpacing: '-0.01em' }}>
+      <div style={{ padding: '24px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)' }}>
+        <h1 style={{ fontWeight: 700, fontSize: '24px', color: '#FFFFFF', margin: 0, letterSpacing: '-0.01em' }}>
           Check Coverage
         </h1>
         <a
@@ -790,7 +826,7 @@ function ResearchPage() {
       {/* ── Filter bar ── */}
       <div style={{
         display: 'flex', alignItems: 'flex-end', gap: '11px',
-        padding: '20px 26px 12px',
+        padding: '12px 26px',
         borderBottom: '0.5px solid #383838',
       }}>
         {/* Search input — matches left panel width */}
@@ -853,7 +889,7 @@ function ResearchPage() {
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 240px)' }}>
 
         {/* ── Left panel ── */}
-        <div style={{ width: '398px', flexShrink: 0, padding: '18px 22px 40px' }}>
+        <div style={{ width: '398px', flexShrink: 0, padding: '18px 26px 40px' }}>
 
           {/* Script label + AI Generate + Upload */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
@@ -956,20 +992,55 @@ function ResearchPage() {
               </div>
             )}
             <textarea
-              placeholder={'Enter words or scripts here\n\nTips:\nOne word per line or comma-separated.'}
+              placeholder=""
               value={text}
               onChange={e => handleTextChange(e.target.value)}
               disabled={isBusy}
+              spellCheck={false}
+              autoCorrect="off"
+              autoComplete="off"
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
               style={{
                 width: '100%', resize: 'none', boxSizing: 'border-box',
                 height: `${textareaHeight}px`,
                 backgroundColor: 'transparent',
                 border: 'none',
-                color: text ? '#FFFFFF' : '#BBBBBB', fontSize: '14px',
-                padding: '16px', outline: 'none', lineHeight: '1.5',
+                color: '#FFFFFF', fontSize: '14px',
+                padding: '8px 0', outline: 'none', lineHeight: '1.5',
                 opacity: isBusy ? 0.5 : 1,
+                position: 'relative', zIndex: 1,
               }}
             />
+            {/* Styled empty state — shown when textarea is empty */}
+            {!text && (
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0,
+                padding: '8px 0', pointerEvents: 'none', zIndex: 0,
+              }}>
+                <p style={{ fontSize: '14px', color: '#555', margin: '0 0 20px', lineHeight: 1.5 }}>
+                  Paste a script or enter words to check…
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {[
+                    { icon: '↵', text: 'One word per line' },
+                    { icon: ',', text: 'Comma-separated' },
+                    { icon: '↑', text: 'Drag & drop a file' },
+                  ].map(tip => (
+                    <span key={tip.text} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '5px',
+                      padding: '3px 8px', borderRadius: '4px',
+                      backgroundColor: '#1a1a1a', border: '0.5px solid #2a2a2a',
+                      fontSize: '11px', color: '#555',
+                    }}>
+                      <span style={{ fontFamily: 'monospace', color: '#444' }}>{tip.icon}</span>
+                      {tip.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Word count + Check Coverage button */}
@@ -987,7 +1058,7 @@ function ResearchPage() {
                 opacity: (wordCount === 0 || isBusy) ? 0.4 : 1,
               }}
             >
-              {status === 'checking' && !generatingScript ? 'Checking…' : 'Check Coverage'}
+              {status === 'checking' && !generatingScript ? 'Checking…' : resultsStale && results ? 'Re-check Coverage' : 'Check Coverage'}
             </button>
           </div>
 
@@ -998,7 +1069,7 @@ function ResearchPage() {
               height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'ns-resize', userSelect: 'none', flexShrink: 0,
               borderTop: '0.5px solid #2A2A2A', borderBottom: '0.5px solid #2A2A2A',
-              margin: '0 -22px 0 -22px',
+              margin: '0 -26px 0 -26px',
             }}
           >
             <div style={{ width: '48px', height: '3px', borderRadius: '99px', backgroundColor: '#383838' }} />
@@ -1022,7 +1093,7 @@ function ResearchPage() {
         <div style={{ flex: 1, padding: '0 26px 40px', minWidth: 0 }}>
 
           {/* Tabs + action buttons */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0' }}>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: '20px', flexShrink: 0 }}>
               {/* Active tab — white underline overlaps the grey border */}
               <span style={{
@@ -1100,10 +1171,10 @@ function ResearchPage() {
           )}
 
           {status === 'done' && results && !isBusy && (
-            <div className="space-y-4">
+            <div>
 
               {/* Compact stats strip */}
-              <div style={{ display: 'flex', gap: '40px', paddingBottom: '16px', borderBottom: '0.5px solid #383838', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', gap: '40px', padding: '16px 26px', margin: '0 -26px 4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
                 <div>
                   <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Total words</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{results.totalTokens.toLocaleString()}</div>
@@ -1124,7 +1195,7 @@ function ResearchPage() {
 
               {/* OOV list */}
               {results.oovWords.length > 0 ? (
-                <div>
+                <div style={{ margin: '0 -26px' }}>
                   {results.oovWords.map(({ word, frequency }, i) => (
                     <OovRow
                       key={word}
@@ -1155,7 +1226,7 @@ function ResearchPage() {
           )}
 
           {status === 'idle' && !isBusy && (
-            <div className="rounded-[5px] px-6 py-12 text-center" style={{ backgroundColor: '#141414', border: '1px solid #2A2A2A' }}>
+            <div className="rounded-[5px] px-6 py-12 text-center" style={{ backgroundColor: '#141414', border: '1px solid #2A2A2A', marginTop: '24px' }}>
               <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-[5px]" style={{ backgroundColor: '#1f1f1f' }}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path d="M9 1L2 4.5v5C2 13.5 5.1 16.8 9 17.5c3.9-.7 7-4 7-8v-5L9 1z" stroke="#A5A5A5" strokeWidth="1.4" strokeLinejoin="round" />
@@ -1666,33 +1737,34 @@ function OovRow({
     <div
       style={{
         borderTop: isFirst ? undefined : '0.5px solid #2A2A2A',
-        padding: '7px 20px',
+        padding: '13px 26px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
+        gap: '12px',
         minWidth: 0,
       }}
     >
-      {/* Word + frequency */}
-      <span
-        style={{
-          fontFamily: 'ui-monospace, monospace',
-          fontSize: '13px',
-          fontWeight: 700,
-          color: '#FFFFFF',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-          maxWidth: '140px',
-        }}
-        title={word}
-      >
-        {word}
-      </span>
-      <span style={{ fontSize: '11px', color: '#7C7C7C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-        ×{frequency.toLocaleString()}
-      </span>
+      {/* Word + frequency — fixed width so all buttons align */}
+      <div style={{ width: '200px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+        <span
+          style={{
+            fontFamily: 'ui-monospace, monospace',
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#FFFFFF',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flexShrink: 1,
+          }}
+          title={word}
+        >
+          {word}
+        </span>
+        <span style={{ fontSize: '11px', color: '#7C7C7C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+          ×{frequency.toLocaleString()}
+        </span>
+      </div>
 
       {pipe}
 

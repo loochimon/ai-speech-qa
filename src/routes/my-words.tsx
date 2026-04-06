@@ -128,7 +128,7 @@ function MyWordsPage() {
       </div>
 
       {/* ── filter bar ── */}
-      <div className="flex items-center gap-3 px-8 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="flex items-center gap-3 px-8 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         {/* Search */}
         <div
           className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2"
