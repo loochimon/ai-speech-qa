@@ -194,7 +194,6 @@ function AnnotationManagementPage() {
             const submitted = annWords.filter(w => w.status === 'Updated' || w.status === 'Approved').length
             const approved = annWords.filter(w => w.status === 'Approved').length
             const isSelected = selectedAnnotatorId === ann.id
-            const pct = annWords.length > 0 ? Math.round((submitted / annWords.length) * 100) : 0
             return (
               <div
                 key={ann.id}
@@ -209,9 +208,6 @@ function AnnotationManagementPage() {
                     <div style={{ fontSize: '12px', fontWeight: isSelected ? 600 : 400, color: 'var(--text-emphasis)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ann.name}</div>
                     <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{submitted} submitted · {approved} approved</div>
                   </div>
-                </div>
-                <div style={{ height: '3px', borderRadius: '2px', backgroundColor: 'var(--surface-3)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: '2px', backgroundColor: ann.color, width: `${pct}%`, transition: 'width 0.3s' }} />
                 </div>
               </div>
             )
@@ -271,9 +267,6 @@ function AnnotationManagementPage() {
                 </button>
               )}
             </div>
-          </div>
-          <div style={{ height: '4px', borderRadius: '2px', backgroundColor: 'var(--surface-3)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', borderRadius: '2px', background: 'linear-gradient(90deg, #34d399, #2dd4bf)', transition: 'width 0.4s', width: filtered.length > 0 ? `${(approvedCount / filtered.length) * 100}%` : '0%' }} />
           </div>
         </div>
 
