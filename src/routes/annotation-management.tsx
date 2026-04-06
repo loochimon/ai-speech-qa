@@ -239,7 +239,10 @@ function AnnotationManagementPage() {
                     <span style={{ color: 'var(--text-muted)' }}>· {w.account}</span>
                   </div>
                 </div>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>×{w.frequency}</span>
+                {w.status === 'Approved'
+                  ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}><path d="M2 6l3 3 5-5" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  : <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>×{w.frequency}</span>
+                }
               </div>
             )
           }) : (
