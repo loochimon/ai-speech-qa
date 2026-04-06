@@ -632,7 +632,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
 
   // ── Feature 6: Version history ───────────────────────────────────────────
   const [pronunciationHistory, setPronunciationHistory] = useState<string[]>([])
-  const [showHistory, setShowHistory] = useState(false)
 
   const isDone = word.status === 'Updated' || word.status === 'Rejected'
 
@@ -812,25 +811,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
             </svg>
             Note{comment ? ' ·' : ''}
           </button>
-          {/* History toggle */}
-          {pronunciationHistory.length > 0 && (
-            <button
-              onClick={e => { e.stopPropagation(); setShowHistory(v => !v) }}
-              title="Version history"
-              style={{
-                padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: showHistory ? 'rgba(45,212,191,0.08)' : 'transparent',
-                color: showHistory ? '#2dd4bf' : 'var(--text-muted)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-              }}
-            >
-              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <circle cx="6" cy="6" r="5"/><path d="M6 3v3l2 1"/>
-              </svg>
-              History · {pronunciationHistory.length}
-            </button>
-          )}
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{word.date}</span>
           {isDone && (
             <span style={{
@@ -1097,6 +1077,35 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
               </div>
             )}
 
+            {/* Feature 6: Version history — inline chips */}
+            {pronunciationHistory.length > 0 && (
+              <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '2px', marginTop: '-4px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', flexShrink: 0 }}>Tried</span>
+                {pronunciationHistory.map((entry, hi) => (
+                  <div key={hi} style={{ display: 'flex', alignItems: 'center', gap: '0', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)' }}>
+                    <button
+                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handleRestoreHistory(entry) }}
+                      title="Restore this pronunciation"
+                      style={{
+                        padding: '3px 7px', fontSize: '10px', fontFamily: 'monospace',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-muted)', lineHeight: 1.4,
+                      }}
+                    >{entry}</button>
+                    <button
+                      onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setPronunciationHistory(prev => prev.filter((_, i) => i !== hi)) }}
+                      title="Discard"
+                      style={{
+                        padding: '3px 5px 3px 2px', fontSize: '11px', lineHeight: 1,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-muted)', opacity: 0.5,
+                      }}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Record button */}
             <button
               onClick={e => {
@@ -1203,32 +1212,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
         </div>
       )}
 
-      {/* Feature 6: Version history section */}
-      {showHistory && pronunciationHistory.length > 0 && (
-        <div style={{ padding: '10px 20px 14px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'rgba(45,212,191,0.02)' }}>
-          <FieldLabel>Version History</FieldLabel>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {pronunciationHistory.map((entry, hi) => (
-              <div key={hi} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'monospace', minWidth: '16px' }}>#{hi + 1}</span>
-                <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px', color: '#2dd4bf' }}>{entry}</span>
-                <button
-                  onClick={e => { e.stopPropagation(); handleRestoreHistory(entry) }}
-                  style={{
-                    padding: '2px 8px', borderRadius: '3px', fontSize: '10px', fontWeight: 500,
-                    border: '1px solid rgba(45,212,191,0.25)', backgroundColor: 'rgba(45,212,191,0.06)',
-                    color: '#2dd4bf', cursor: 'pointer',
-                  }}
-                >Restore</button>
-                <button
-                  onClick={e => { e.stopPropagation(); setPronunciationHistory(prev => prev.filter((_, i) => i !== hi)) }}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', lineHeight: 1, padding: '0 2px' }}
-                >×</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
