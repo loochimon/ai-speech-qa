@@ -167,6 +167,24 @@ function ResearchPage() {
 
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [textareaHeight, setTextareaHeight] = useState(280)
+  const dragBarRef = useRef<{ startY: number; startH: number } | null>(null)
+
+  const handleDragBarMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    dragBarRef.current = { startY: e.clientY, startH: textareaHeight }
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientY - dragBarRef.current!.startY
+      setTextareaHeight(Math.max(80, dragBarRef.current!.startH + delta))
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      dragBarRef.current = null
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [historyExpanded, setHistoryExpanded] = useState(false)
@@ -938,15 +956,15 @@ function ResearchPage() {
               </div>
             )}
             <textarea
-              rows={14}
               placeholder={'Enter words or scripts here\n\nTips:\nOne word per line or comma-separated.'}
               value={text}
               onChange={e => handleTextChange(e.target.value)}
               disabled={isBusy}
               style={{
                 width: '100%', resize: 'none', boxSizing: 'border-box',
-                backgroundColor: '#141414',
-                border: 'none', borderBottom: '1px solid #2A2A2A',
+                height: `${textareaHeight}px`,
+                backgroundColor: 'transparent',
+                border: 'none',
                 color: text ? '#FFFFFF' : '#BBBBBB', fontSize: '14px',
                 padding: '16px', outline: 'none', lineHeight: '1.5',
                 opacity: isBusy ? 0.5 : 1,
@@ -955,7 +973,7 @@ function ResearchPage() {
           </div>
 
           {/* Word count + Check Coverage button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
             <span style={{ color: '#BBBBBB', fontSize: '14px' }}>
               {wordCount} words
             </span>
@@ -973,8 +991,21 @@ function ResearchPage() {
             </button>
           </div>
 
+          {/* Drag-to-resize bar — bleeds full panel width */}
+          <div
+            onMouseDown={handleDragBarMouseDown}
+            style={{
+              height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'ns-resize', userSelect: 'none', flexShrink: 0,
+              borderTop: '0.5px solid #2A2A2A', borderBottom: '0.5px solid #2A2A2A',
+              margin: '0 -22px 0 -22px',
+            }}
+          >
+            <div style={{ width: '48px', height: '3px', borderRadius: '99px', backgroundColor: '#383838' }} />
+          </div>
+
           {/* History section */}
-          <div style={{ marginTop: '40px' }}>
+          <div style={{ marginTop: '24px' }}>
             <HistoryPanel
               history={history}
               expanded={historyExpanded}
@@ -988,13 +1019,26 @@ function ResearchPage() {
         <div style={{ width: '0.5px', backgroundColor: '#383838', flexShrink: 0, alignSelf: 'stretch' }} />
 
         {/* ── Right panel ── */}
-        <div style={{ flex: 1, padding: '18px 26px 40px', minWidth: 0 }}>
+        <div style={{ flex: 1, padding: '0 26px 40px', minWidth: 0 }}>
 
           {/* Tabs + action buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', gap: '12px', flexWrap: 'nowrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
-              <span style={{ fontSize: '12px', color: '#FFFFFF', whiteSpace: 'nowrap' }}>Not in dictionary{results ? ` (${results.oovWords.length})` : ''}</span>
-              <span style={{ fontSize: '12px', color: '#FFFFFF', opacity: 0.4, whiteSpace: 'nowrap' }}>In dictionary</span>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: '20px', flexShrink: 0 }}>
+              {/* Active tab — white underline overlaps the grey border */}
+              <span style={{
+                fontSize: '13px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap',
+                paddingTop: '16px', paddingBottom: '16px', marginBottom: '-1px',
+                borderBottom: '2px solid #FFFFFF',
+              }}>
+                Not in dictionary{results ? ` (${results.oovWords.length})` : ''}
+              </span>
+              {/* Inactive tab */}
+              <span style={{
+                fontSize: '13px', fontWeight: 400, color: '#7C7C7C', whiteSpace: 'nowrap',
+                paddingTop: '16px', paddingBottom: '16px', cursor: 'pointer',
+              }}>
+                In dictionary
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
               <button
@@ -1003,8 +1047,8 @@ function ResearchPage() {
                 style={{
                   borderRadius: '5px', padding: '8px 16px', border: 'none',
                   fontSize: '14px', cursor: 'pointer',
-                  backgroundColor: (status === 'done' && results && results.oovWords.length > 0) ? '#FFFFFF' : '#2A2A2A',
-                  color: (status === 'done' && results && results.oovWords.length > 0) ? '#000000' : '#666666',
+                  backgroundColor: '#FFFFFF', color: '#000000',
+                  opacity: (status !== 'done' || !results || results.oovWords.length === 0) ? 0.4 : 1,
                 }}
               >
                 Request Pronunciation
@@ -1013,7 +1057,10 @@ function ResearchPage() {
                 onClick={() => window.open('/shared', '_blank')}
                 disabled={status !== 'done' || !results || results.oovWords.length === 0}
                 style={{
-                  background: 'none', border: 'none', color: '#7C7C7C', fontSize: '14px', cursor: 'pointer',
+                  borderRadius: '5px', padding: '8px 16px',
+                  border: '0.5px solid #434343',
+                  backgroundColor: 'transparent',
+                  color: '#9C9C9C', fontSize: '14px', cursor: 'pointer',
                   opacity: (status !== 'done' || !results || results.oovWords.length === 0) ? 0.4 : 1,
                 }}
               >
@@ -1022,8 +1069,6 @@ function ResearchPage() {
             </div>
           </div>
 
-          {/* Horizontal divider */}
-          <div style={{ height: '0.5px', backgroundColor: '#383838', marginBottom: '20px' }} />
 
           {status === 'error' && (
             <div
