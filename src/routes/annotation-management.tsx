@@ -268,6 +268,9 @@ function AnnotationManagementPage() {
               )}
             </div>
           </div>
+          <div style={{ height: '3px', backgroundColor: 'var(--surface-3)', overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, #34d399, #2dd4bf)', transition: 'width 0.4s', width: filtered.length > 0 ? `${(approvedCount / filtered.length) * 100}%` : '0%' }} />
+          </div>
         </div>
 
         {filtered.length === 0 ? (
