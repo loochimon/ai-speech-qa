@@ -255,6 +255,7 @@ function Sidebar() {
                 { label: 'Research', href: '/' },
                 { label: 'Monitoring', href: '/my-words' },
                 { label: 'Corrections', href: '/corrections', admin: true, badge: true },
+                { label: 'Annotation Management', href: '/annotation-management', admin: true },
               ],
             },
           ]}
