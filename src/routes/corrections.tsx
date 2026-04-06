@@ -369,6 +369,10 @@ function CorrectionsPage() {
     setSelectedIndex(i => Math.min(i + 1, filtered.length - 1))
   }, [filtered.length])
 
+  const handleEdit = useCallback((word: string) => {
+    setAllWords(prev => prev.map(w => w.word === word ? { ...w, status: 'In Review' } : w))
+  }, [])
+
   const done    = filtered.filter(w => w.status === 'Updated' || w.status === 'Rejected').length
   const pending = filtered.length - done
 
@@ -560,6 +564,7 @@ function CorrectionsPage() {
               cardRef={(el) => { if (el) cardRefs.current.set(w.word, el); else cardRefs.current.delete(w.word) }}
               onSubmit={handleSubmit}
               onReject={handleReject}
+              onEdit={handleEdit}
               onClick={() => setSelectedIndex(i)}
             />
           ))
@@ -591,12 +596,13 @@ function WordListRow({ w, isSelected, onClick }: { w: AnnotationWord; isSelected
 
 // ─── WordCard — expanded annotation card ──────────────────────────────────────
 
-function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }: {
+function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, onClick }: {
   word: AnnotationWord
   isHighlighted: boolean
   cardRef: (el: HTMLDivElement | null) => void
   onSubmit: (word: string, pronunciation: string) => void
   onReject: (word: string) => void
+  onEdit: (word: string) => void
   onClick: () => void
 }) {
   const [pronunciation, setPronunciation] = useState(word.rime ? `{${word.rime}}` : '')
@@ -1168,14 +1174,24 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
             }}>Submit →</button>
           </>
         ) : (
-          <div style={{
-            padding: '8px 12px', borderRadius: '5px', fontSize: '12px',
-            backgroundColor: word.status === 'Updated' ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)',
-            border: `1px solid ${word.status === 'Updated' ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)'}`,
-            color: word.status === 'Updated' ? '#34d399' : '#f87171',
-          }}>
-            {word.status === 'Updated' ? `✓ Submitted: {${word.rime}}` : '✗ Rejected'}
-          </div>
+          <>
+            <div style={{
+              padding: '8px 12px', borderRadius: '5px', fontSize: '12px',
+              backgroundColor: word.status === 'Updated' ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)',
+              border: `1px solid ${word.status === 'Updated' ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)'}`,
+              color: word.status === 'Updated' ? '#34d399' : '#f87171',
+            }}>
+              {word.status === 'Updated' ? `✓ Submitted: {${word.rime}}` : '✗ Rejected'}
+            </div>
+            <button
+              onClick={e => { e.stopPropagation(); onEdit(word.word) }}
+              style={{
+                padding: '8px 16px', borderRadius: '5px', fontSize: '12px', fontWeight: 500,
+                border: '1px solid var(--border-default)', backgroundColor: 'transparent',
+                color: 'var(--text-secondary)', cursor: 'pointer', flexShrink: 0,
+              }}
+            >Edit</button>
+          </>
         )}
       </div>
 
