@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { RequestedWord } from './index'
-import { fetchWordAudio } from '#/lib/api'
+import { fetchWordAudio, fetchPhoneticAudio } from '#/lib/api'
 
 export const Route = createFileRoute('/corrections')({ component: CorrectionsPage })
 
@@ -167,6 +167,105 @@ const STATUS_DOT: Record<string, string> = {
   'In Review': '#fbbf24',
   Updated:     '#34d399',
   Rejected:    '#f87171',
+}
+
+// ─── IPA → Rime phoneme lookup (for phoneme breakdown tooltip) ────────────────
+
+const IPA_TOKENS: Array<{ ipa: string; rime: string; label: string }> = [
+  // Diphthongs (must check before monophthongs)
+  { ipa: 'eɪ', rime: 'eI', label: 'face' },
+  { ipa: 'aɪ', rime: 'Y',  label: 'price' },
+  { ipa: 'ɔɪ', rime: 'OI', label: 'choice' },
+  { ipa: 'aʊ', rime: 'aU', label: 'mouth' },
+  { ipa: 'oʊ', rime: 'oU', label: 'goat' },
+  { ipa: 'tʃ', rime: 'tS', label: 'chin' },
+  { ipa: 'dʒ', rime: 'dZ', label: 'june' },
+  // Monophthongs
+  { ipa: 'æ',  rime: '@',  label: 'trap' },
+  { ipa: 'ɑ',  rime: 'a',  label: 'lot' },
+  { ipa: 'ɔ',  rime: 'O',  label: 'thought' },
+  { ipa: 'ə',  rime: 'x',  label: 'schwa' },
+  { ipa: 'ɛ',  rime: 'E',  label: 'dress' },
+  { ipa: 'ɪ',  rime: 'I',  label: 'kit' },
+  { ipa: 'ʊ',  rime: 'U',  label: 'foot' },
+  { ipa: 'ʌ',  rime: 'V',  label: 'strut' },
+  { ipa: 'ɝ',  rime: 'xr', label: 'nurse' },
+  { ipa: 'ɚ',  rime: 'xr', label: 'letter' },
+  { ipa: 'i',  rime: 'i',  label: 'fleece' },
+  { ipa: 'u',  rime: 'u',  label: 'goose' },
+  { ipa: 'e',  rime: 'e',  label: 'e' },
+  { ipa: 'a',  rime: 'a',  label: 'a' },
+  // Consonants
+  { ipa: 'p',  rime: 'p',  label: 'p' },
+  { ipa: 'b',  rime: 'b',  label: 'b' },
+  { ipa: 't',  rime: 't',  label: 't' },
+  { ipa: 'd',  rime: 'd',  label: 'd' },
+  { ipa: 'k',  rime: 'k',  label: 'k' },
+  { ipa: 'g',  rime: 'g',  label: 'g' },
+  { ipa: 'f',  rime: 'f',  label: 'f' },
+  { ipa: 'v',  rime: 'v',  label: 'v' },
+  { ipa: 'θ',  rime: 'T',  label: 'thin' },
+  { ipa: 'ð',  rime: 'D',  label: 'this' },
+  { ipa: 's',  rime: 's',  label: 's' },
+  { ipa: 'z',  rime: 'z',  label: 'z' },
+  { ipa: 'ʃ',  rime: 'S',  label: 'she' },
+  { ipa: 'ʒ',  rime: 'Z',  label: 'vision' },
+  { ipa: 'h',  rime: 'h',  label: 'h' },
+  { ipa: 'm',  rime: 'm',  label: 'm' },
+  { ipa: 'n',  rime: 'n',  label: 'n' },
+  { ipa: 'ŋ',  rime: 'G',  label: 'sing' },
+  { ipa: 'l',  rime: 'l',  label: 'l' },
+  { ipa: 'r',  rime: 'r',  label: 'r' },
+  { ipa: 'ɹ',  rime: 'r',  label: 'r' },
+  { ipa: 'ɾ',  rime: 'r',  label: 'flap' },
+  { ipa: 'w',  rime: 'w',  label: 'w' },
+  { ipa: 'j',  rime: 'y',  label: 'yes' },
+  { ipa: 'x',  rime: 'G',  label: 'loch' },
+  // Stress marks
+  { ipa: 'ˈ',  rime: '1',  label: 'primary stress' },
+  { ipa: 'ˌ',  rime: '2',  label: 'secondary stress' },
+]
+
+function parseIpaToTokens(ipa: string): Array<{ ipa: string; rime: string; label: string }> {
+  const clean = ipa.replace(/[/\[\]]/g, '')
+  const result: Array<{ ipa: string; rime: string; label: string }> = []
+  let i = 0
+  while (i < clean.length) {
+    const two = clean.slice(i, i + 2)
+    const matchTwo = IPA_TOKENS.find(t => t.ipa === two)
+    if (matchTwo) { result.push(matchTwo); i += 2; continue }
+    const one = clean[i]
+    const matchOne = IPA_TOKENS.find(t => t.ipa === one)
+    if (matchOne) { result.push(matchOne) }
+    else if (one !== 'ː' && one !== ' ') { result.push({ ipa: one, rime: '', label: '' }) }
+    i++
+  }
+  return result
+}
+
+// ─── Simple char-level diff ───────────────────────────────────────────────────
+
+function diffStrings(a: string, b: string): Array<{ char: string; type: 'same' | 'add' | 'remove' }> {
+  // Build LCS table
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0))
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1])
+
+  // Backtrack
+  const result: Array<{ char: string; type: 'same' | 'add' | 'remove' }> = []
+  let i = a.length, j = b.length
+  const ops: Array<{ char: string; type: 'same' | 'add' | 'remove' }> = []
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      ops.unshift({ char: a[i - 1], type: 'same' }); i--; j--
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.unshift({ char: b[j - 1], type: 'add' }); j--
+    } else {
+      ops.unshift({ char: a[i - 1], type: 'remove' }); i--
+    }
+  }
+  return ops.length ? ops : result
 }
 
 // ─── CorrectionsPage ──────────────────────────────────────────────────────────
@@ -507,6 +606,9 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
   const [inputFocused, setInputFocused] = useState(false)
   const [playingRecording, setPlayingRecording] = useState(false)
   const [loadingRecording, setLoadingRecording] = useState(false)
+  const [playingPreview, setPlayingPreview] = useState(false)
+  const [loadingPreview, setLoadingPreview] = useState(false)
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
   const [annotatorRecordState, setAnnotatorRecordState] = useState<'idle' | 'recording' | 'recorded'>('idle')
   const [annotatorRecordedUrl, setAnnotatorRecordedUrl] = useState<string | null>(null)
   const [playingAnnotatorRec, setPlayingAnnotatorRec] = useState(false)
@@ -514,7 +616,33 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
   const recordingAudioRef = useRef<HTMLAudioElement | null>(null)
   const annotatorMediaRef = useRef<MediaRecorder | null>(null)
   const annotatorAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // ── Feature 1: Speed control ──────────────────────────────────────────────
+  const [speedRate, setSpeedRate] = useState<0.75 | 1 | 1.25>(1)
+
+  // ── Feature 2: In-context preview ────────────────────────────────────────
+  const [playingContext, setPlayingContext] = useState(false)
+  const [loadingContext, setLoadingContext] = useState(false)
+  const contextAudioRef = useRef<HTMLAudioElement | null>(null)
+
+  // ── Feature 3: Comments per word ─────────────────────────────────────────
+  const [showComment, setShowComment] = useState(false)
+  const [comment, setComment] = useState('')
+
+  // ── Feature 4: Phoneme breakdown ─────────────────────────────────────────
+  const [hoveredIpaIdx, setHoveredIpaIdx] = useState<number | null>(null)
+
+  // ── Feature 6: Version history ───────────────────────────────────────────
+  const [pronunciationHistory, setPronunciationHistory] = useState<string[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+
   const isDone = word.status === 'Updated' || word.status === 'Rejected'
+
+  // ── Feature 5: Diff view — computed from current vs original ─────────────
+  const originalRime = word.rime ?? ''
+  const currentBare = pronunciation.trim().replace(/^\{|\}$/g, '')
+  const hasDiff = currentBare.length > 0 && currentBare !== originalRime && originalRime.length > 0
+  const diffTokens = hasDiff ? diffStrings(originalRime, currentBare) : []
 
   const handleAnnotatorRecord = async () => {
     if (annotatorRecordState === 'recording') {
@@ -551,13 +679,54 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
     if (playingRecording) { recordingAudioRef.current?.pause(); setPlayingRecording(false); return }
     setLoadingRecording(true)
     try {
-      // For demo: use TTS to simulate the requester's recording
       const url = await fetchWordAudio(word.word, RIME_API_KEY, 'cove')
-      const audio = new Audio(url); recordingAudioRef.current = audio
+      const audio = new Audio(url)
+      audio.playbackRate = speedRate
+      recordingAudioRef.current = audio
       audio.onended = () => setPlayingRecording(false)
       await audio.play(); setPlayingRecording(true)
     } catch { /* fail silently */ }
     finally { setLoadingRecording(false) }
+  }
+
+  const handlePlayPreview = async () => {
+    const bare = pronunciation.trim()
+    if (!bare) return
+    if (playingPreview) { previewAudioRef.current?.pause(); setPlayingPreview(false); return }
+    if (previewAudioRef.current) previewAudioRef.current.pause()
+    setLoadingPreview(true)
+    try {
+      const url = await fetchPhoneticAudio(bare, RIME_API_KEY, 'lagoon')
+      const audio = new Audio(url)
+      audio.playbackRate = speedRate
+      previewAudioRef.current = audio
+      audio.onended = () => setPlayingPreview(false)
+      await audio.play(); setPlayingPreview(true)
+    } catch { /* fail silently */ }
+    finally { setLoadingPreview(false) }
+  }
+
+  // Feature 2: hear word inside a sentence using current pronunciation
+  const handlePlayContext = async () => {
+    if (playingContext) { contextAudioRef.current?.pause(); setPlayingContext(false); return }
+    if (contextAudioRef.current) contextAudioRef.current.pause()
+    setLoadingContext(true)
+    const bare = pronunciation.trim()
+    // Build a sentence that embeds the word in context
+    const sentence = bare
+      ? `Please take your ${bare} as directed. ${bare} should be taken daily.`
+      : `Please take your ${word.word} as directed.`
+    try {
+      const url = bare
+        ? await fetchPhoneticAudio(sentence, RIME_API_KEY, 'lagoon')
+        : await fetchWordAudio(sentence, RIME_API_KEY, 'lagoon')
+      const audio = new Audio(url)
+      audio.playbackRate = speedRate
+      contextAudioRef.current = audio
+      audio.onended = () => setPlayingContext(false)
+      await audio.play(); setPlayingContext(true)
+    } catch { /* fail silently */ }
+    finally { setLoadingContext(false) }
   }
 
   const handlePlaySuggestion = async (idx: number) => {
@@ -566,7 +735,9 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
     setLoadingIdx(idx)
     try {
       const url = await fetchWordAudio(word.word, RIME_API_KEY, 'lagoon')
-      const audio = new Audio(url); audioRef.current = audio
+      const audio = new Audio(url)
+      audio.playbackRate = speedRate
+      audioRef.current = audio
       audio.onended = () => setPlayingIdx(null)
       await audio.play(); setPlayingIdx(idx)
     } catch { /* fail silently */ }
@@ -574,8 +745,25 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
   }
 
   const handleUseSuggestion = (idx: number, rime: string) => {
+    // Push current pronunciation to history before switching
+    if (pronunciation.trim()) {
+      setPronunciationHistory(prev => {
+        const next = [pronunciation.trim(), ...prev.filter(p => p !== pronunciation.trim())]
+        return next.slice(0, 8) // cap at 8
+      })
+    }
     setPronunciation(`{${rime}}`)
     setUsedIdx(idx)
+  }
+
+  const handleRestoreHistory = (entry: string) => {
+    if (pronunciation.trim()) {
+      setPronunciationHistory(prev => {
+        const next = [pronunciation.trim(), ...prev.filter(p => p !== pronunciation.trim() && p !== entry)]
+        return next.slice(0, 8)
+      })
+    }
+    setPronunciation(entry)
   }
 
   const handleSubmit = () => {
@@ -583,6 +771,9 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
     if (!bare) return
     onSubmit(word.word, bare)
   }
+
+  // Speed toggle chips
+  const speedOptions: Array<0.75 | 1 | 1.25> = [0.75, 1, 1.25]
 
   return (
     <div
@@ -599,13 +790,64 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
       }}
     >
       {/* Card header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-emphasis)' }}>{word.word}</span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>×{word.frequency}</span>
           <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>{word.account}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Feature 1: Speed control */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '2px', borderRadius: '5px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+            {speedOptions.map(s => (
+              <button
+                key={s}
+                onClick={e => { e.stopPropagation(); setSpeedRate(s) }}
+                style={{
+                  padding: '2px 7px', borderRadius: '3px', fontSize: '10px', fontWeight: 600,
+                  border: 'none', cursor: 'pointer', transition: 'background-color 0.1s',
+                  backgroundColor: speedRate === s ? 'var(--surface-3)' : 'transparent',
+                  color: speedRate === s ? 'var(--text-emphasis)' : 'var(--text-muted)',
+                }}
+              >{s}×</button>
+            ))}
+          </div>
+          {/* Comment toggle */}
+          <button
+            onClick={e => { e.stopPropagation(); setShowComment(v => !v) }}
+            title="Annotator note"
+            style={{
+              padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: showComment || comment ? 'rgba(139,92,246,0.08)' : 'transparent',
+              color: comment ? '#a78bfa' : 'var(--text-muted)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+            }}
+          >
+            <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M1 1h10v7H7l-3 3V8H1V1z"/>
+            </svg>
+            Note{comment ? ' ·' : ''}
+          </button>
+          {/* History toggle */}
+          {pronunciationHistory.length > 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowHistory(v => !v) }}
+              title="Version history"
+              style={{
+                padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: showHistory ? 'rgba(45,212,191,0.08)' : 'transparent',
+                color: showHistory ? '#2dd4bf' : 'var(--text-muted)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+              }}
+            >
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="6" cy="6" r="5"/><path d="M6 3v3l2 1"/>
+              </svg>
+              History · {pronunciationHistory.length}
+            </button>
+          )}
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{word.date}</span>
           {isDone && (
             <span style={{
@@ -681,6 +923,8 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
             const isPlaying = playingIdx === idx
             const isLoading = loadingIdx === idx
             const isUsed    = usedIdx === idx
+            // Feature 4: parse IPA for phoneme breakdown tooltip
+            const ipaTokens = parseIpaToTokens(s.ipa)
             return (
               <div
                 key={idx}
@@ -710,12 +954,47 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
                   }
                 </button>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '10px', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    <span style={{ color: '#a78bfa' }}>/{s.ipa}/</span>
+                  {/* Feature 4: IPA with phoneme breakdown tooltip */}
+                  <div style={{ fontSize: '10px', fontFamily: 'monospace', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0', marginBottom: '2px' }}>
+                    <span
+                      style={{ color: '#a78bfa', position: 'relative', cursor: 'help', borderBottom: '1px dotted rgba(167,139,250,0.4)', display: 'inline-flex' }}
+                      onMouseEnter={e => { e.stopPropagation(); setHoveredIpaIdx(idx) }}
+                      onMouseLeave={() => setHoveredIpaIdx(null)}
+                    >
+                      /{s.ipa}/
+                      {/* Phoneme breakdown tooltip */}
+                      {hoveredIpaIdx === idx && ipaTokens.length > 0 && (
+                        <div
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            position: 'absolute', bottom: 'calc(100% + 6px)', left: '0',
+                            backgroundColor: '#1a1a1a', border: '1px solid var(--border-default)',
+                            borderRadius: '6px', padding: '8px 10px', zIndex: 50,
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: '160px', maxWidth: '260px',
+                          }}
+                        >
+                          <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '6px' }}>Phoneme breakdown</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                            {ipaTokens.map((tok, ti) => (
+                              <div key={ti} style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                padding: '3px 5px', borderRadius: '3px',
+                                backgroundColor: tok.rime === '1' || tok.rime === '2' ? 'rgba(251,191,36,0.08)' : 'var(--surface-2)',
+                                border: `1px solid ${tok.rime === '1' || tok.rime === '2' ? 'rgba(251,191,36,0.2)' : 'var(--border-subtle)'}`,
+                              }}>
+                                <span style={{ fontSize: '11px', color: '#a78bfa', fontFamily: 'monospace', lineHeight: 1.2 }}>{tok.ipa}</span>
+                                {tok.rime && <span style={{ fontSize: '9px', color: '#2dd4bf', fontFamily: 'monospace', lineHeight: 1.2, marginTop: '1px' }}>{tok.rime}</span>}
+                                {tok.label && tok.label !== tok.ipa && <span style={{ fontSize: '8px', color: 'var(--text-muted)', lineHeight: 1.2 }}>{tok.label}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </span>
                     <span style={{ margin: '0 4px', color: 'var(--text-muted)', opacity: 0.3 }}>·</span>
                     <span style={{ color: '#2dd4bf' }}>{`{${s.rime}}`}</span>
                   </div>
-                  <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.3 }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-muted)', lineHeight: 1.3 }}>
                     {s.explanation}
                   </div>
                 </div>
@@ -741,28 +1020,98 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
 
       {/* Action bar — pronunciation input + submit/reject */}
       <div style={{
-        padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px',
+        padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px',
         backgroundColor: isDone ? 'rgba(52,211,153,0.02)' : 'rgba(45,212,191,0.04)',
         borderTop: '1px solid var(--border-subtle)',
+        flexWrap: 'wrap',
       }}>
         {!isDone ? (
           <>
             <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', flexShrink: 0 }}>Pronunciation</span>
-            <input
-              value={pronunciation}
-              onChange={e => setPronunciation(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); handleSubmit() } }}
-              onClick={e => e.stopPropagation()}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              placeholder="{r0ImxfOn0xt0Ik}"
+
+            {/* Pronunciation input + preview play button */}
+            <div style={{ flexGrow: 1, flexShrink: 1, minWidth: '120px', position: 'relative' }}>
+              <input
+                value={pronunciation}
+                onChange={e => setPronunciation(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); handleSubmit() } }}
+                onClick={e => e.stopPropagation()}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                placeholder="{r0ImxfOn0xt0Ik}"
+                style={{
+                  width: '100%', padding: '8px 32px 8px 12px', borderRadius: '5px',
+                  border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
+                  backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
+                  fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlayPreview() }}
+                disabled={!pronunciation.trim()}
+                title="Preview pronunciation"
+                style={{
+                  position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                  width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                  border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)',
+                  color: playingPreview ? '#fbbf24' : 'var(--text-muted)',
+                  cursor: pronunciation.trim() ? 'pointer' : 'default',
+                  opacity: pronunciation.trim() ? 1 : 0.3,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {loadingPreview ? (
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
+                ) : playingPreview ? (
+                  <svg width="6" height="7" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg>
+                ) : (
+                  <svg width="5" height="7" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>
+                )}
+              </button>
+            </div>
+
+            {/* Feature 5: Diff indicator — inline pill when there's a change */}
+            {hasDiff && (
+              <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '2px', marginTop: '-4px' }}>
+                <span style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', flexShrink: 0 }}>vs original</span>
+                <div style={{ fontFamily: 'monospace', fontSize: '10px', display: 'flex', flexWrap: 'wrap', gap: '0' }}>
+                  {diffTokens.map((tok, ti) => (
+                    <span
+                      key={ti}
+                      style={{
+                        color: tok.type === 'add' ? '#34d399' : tok.type === 'remove' ? '#f87171' : 'var(--text-muted)',
+                        textDecoration: tok.type === 'remove' ? 'line-through' : 'none',
+                        backgroundColor: tok.type === 'add' ? 'rgba(52,211,153,0.08)' : tok.type === 'remove' ? 'rgba(248,113,113,0.08)' : 'transparent',
+                        padding: '0 0.5px',
+                      }}
+                    >{tok.char}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Feature 2: In-context preview button */}
+            <button
+              onClick={e => { e.stopPropagation(); handlePlayContext() }}
+              title="Hear word in a full sentence"
               style={{
-                flex: 1, padding: '8px 12px', borderRadius: '5px',
-                border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
-                backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
-                fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',
+                padding: '8px 12px', borderRadius: '5px', fontSize: '11px', fontWeight: 500, flexShrink: 0,
+                border: '1px solid var(--border-default)', backgroundColor: playingContext ? 'rgba(45,212,191,0.08)' : 'transparent',
+                color: playingContext ? '#2dd4bf' : 'var(--text-secondary)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
               }}
-            />
+            >
+              {loadingContext ? (
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'currentColor', display: 'inline-block' }} />
+              ) : (
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <path d="M2 6h1.5M8.5 6H10M6 2v1.5M6 8.5V10"/>
+                  <circle cx="6" cy="6" r="2" fill="currentColor" opacity="0.5"/>
+                </svg>
+              )}
+              {playingContext ? 'Playing…' : 'In sentence'}
+            </button>
+
             {/* Record button */}
             <button
               onClick={e => {
@@ -835,6 +1184,66 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
           </div>
         )}
       </div>
+
+      {/* Feature 3: Annotator comment section */}
+      {showComment && (
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'rgba(139,92,246,0.03)' }}>
+          <FieldLabel>Annotator Note</FieldLabel>
+          <textarea
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            onClick={e => e.stopPropagation()}
+            placeholder="Leave a note for another annotator — e.g. stress pattern confirmed by client, or flagging ambiguity…"
+            rows={2}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '8px 12px', borderRadius: '5px',
+              border: '1px solid var(--border-default)',
+              backgroundColor: 'var(--surface-2)',
+              color: 'var(--text-emphasis)', fontSize: '12px', lineHeight: 1.5,
+              resize: 'vertical', outline: 'none', fontFamily: 'inherit',
+            }}
+            onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(139,92,246,0.4)' }}
+            onBlur={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'var(--border-default)' }}
+          />
+          {comment && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{comment.length} chars</span>
+              <button
+                onClick={e => { e.stopPropagation(); setComment('') }}
+                style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+              >Clear</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Feature 6: Version history section */}
+      {showHistory && pronunciationHistory.length > 0 && (
+        <div style={{ padding: '10px 20px 14px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'rgba(45,212,191,0.02)' }}>
+          <FieldLabel>Version History</FieldLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {pronunciationHistory.map((entry, hi) => (
+              <div key={hi} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'monospace', minWidth: '16px' }}>#{hi + 1}</span>
+                <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px', color: '#2dd4bf' }}>{entry}</span>
+                <button
+                  onClick={e => { e.stopPropagation(); handleRestoreHistory(entry) }}
+                  style={{
+                    padding: '2px 8px', borderRadius: '3px', fontSize: '10px', fontWeight: 500,
+                    border: '1px solid rgba(45,212,191,0.25)', backgroundColor: 'rgba(45,212,191,0.06)',
+                    color: '#2dd4bf', cursor: 'pointer',
+                  }}
+                >Restore</button>
+                <button
+                  onClick={e => { e.stopPropagation(); setPronunciationHistory(prev => prev.filter((_, i) => i !== hi)) }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', lineHeight: 1, padding: '0 2px' }}
+                >×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
