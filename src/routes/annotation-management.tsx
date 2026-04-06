@@ -207,7 +207,7 @@ function AnnotationManagementPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: isSelected ? 600 : 400, color: 'var(--text-emphasis)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ann.name}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{submitted}/{annWords.length} submitted · {approved} approved</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>{submitted} submitted · {approved} approved</div>
                   </div>
                 </div>
                 <div style={{ height: '3px', borderRadius: '2px', backgroundColor: 'var(--surface-3)', overflow: 'hidden' }}>
