@@ -625,7 +625,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
   const annotatorAudioRef = useRef<HTMLAudioElement | null>(null)
 
   // ── Feature 1: Speed control ──────────────────────────────────────────────
-  const [speedRate, setSpeedRate] = useState<0.75 | 1 | 1.25>(1)
+  const [speedRate, setSpeedRate] = useState<1 | 0.75 | 0.5 | 0.25>(1)
 
   // ── Feature 2: In-context preview — shares playingPreview state via playMode ─
 
@@ -761,7 +761,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
   }
 
   // Speed toggle chips
-  const speedOptions: Array<0.75 | 1 | 1.25> = [0.75, 1, 1.25]
+  const speedOptions: Array<1 | 0.75 | 0.5 | 0.25> = [1, 0.75, 0.5, 0.25]
 
   return (
     <div
