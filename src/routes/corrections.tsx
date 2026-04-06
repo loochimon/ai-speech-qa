@@ -280,6 +280,27 @@ function CorrectionsPage() {
   const [categoryFilter, setCategoryFilter] = useState('All Categories')
   const [showBanner, setShowBanner] = useState(true)
 
+  // Feature 5: Dynamic categories
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [newCategoryInput, setNewCategoryInput] = useState('')
+  const allCategories = [...CATEGORIES, ...customCategories]
+
+  // Feature 4: Rejected tab in left panel
+
+  const handleAddCategory = () => {
+    const trimmed = newCategoryInput.trim()
+    if (!trimmed || allCategories.includes(trimmed)) return
+    setCustomCategories(prev => [...prev, trimmed])
+    setNewCategoryInput('')
+    setShowAddCategory(false)
+  }
+
+  const handleRemoveCategory = (cat: string) => {
+    setCustomCategories(prev => prev.filter(c => c !== cat))
+    if (categoryFilter === cat) setCategoryFilter('All Categories')
+  }
+
   // Refs for scrolling right panel to a word card
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const rightPanelRef = useRef<HTMLDivElement>(null)
@@ -421,10 +442,41 @@ function CorrectionsPage() {
               <option value="Rejected">Rejected</option>
             </select>
           </div>
-          <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setSelectedIndex(0) }}
-            style={{ width: '100%', fontSize: '11px', padding: '4px 5px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', outline: 'none' }}>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setSelectedIndex(0) }}
+              style={{ flex: 1, fontSize: '11px', padding: '4px 5px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', outline: 'none' }}>
+              {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <button
+              onClick={() => setShowAddCategory(v => !v)}
+              title="Add category"
+              style={{ width: '24px', height: '24px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: showAddCategory ? 'var(--surface-3)' : 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '14px', lineHeight: 1 }}
+            >+</button>
+          </div>
+          {showAddCategory && (
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <input
+                autoFocus
+                value={newCategoryInput}
+                onChange={e => setNewCategoryInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') { setShowAddCategory(false); setNewCategoryInput('') } }}
+                placeholder="Category name…"
+                style={{ flex: 1, fontSize: '11px', padding: '4px 6px', borderRadius: '4px', border: '1px solid rgba(45,212,191,0.4)', backgroundColor: 'var(--surface-2)', color: 'var(--text-emphasis)', outline: 'none' }}
+              />
+              <button onClick={handleAddCategory} style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Add</button>
+              <button onClick={() => { setShowAddCategory(false); setNewCategoryInput('') }} style={{ width: '22px', height: '22px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+          )}
+          {customCategories.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+              {customCategories.map(cat => (
+                <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '2px 6px 2px 7px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-2)', fontSize: '10px', color: 'var(--text-muted)' }}>
+                  <span>{cat}</span>
+                  <button onClick={() => handleRemoveCategory(cat)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 0 0 2px', fontSize: '12px', lineHeight: 1, opacity: 0.6 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
           {accountFilter !== 'All Accounts' && availableProjects.length > 0 && (
             <select value={projectFilter} onChange={e => { setProjectFilter(e.target.value); setSelectedIndex(0) }}
               style={{ width: '100%', fontSize: '11px', padding: '4px 5px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', outline: 'none' }}>
@@ -435,8 +487,9 @@ function CorrectionsPage() {
         </div>
 
         {(() => {
-          const pendingWords = filtered.filter(w => w.status === 'Requested' || w.status === 'In Review')
-          const doneWords = filtered.filter(w => w.status === 'Updated' || w.status === 'Rejected')
+          const pendingWords  = filtered.filter(w => w.status === 'Requested' || w.status === 'In Review')
+          const rejectedWords = filtered.filter(w => w.status === 'Rejected')
+          const updatedWords  = filtered.filter(w => w.status === 'Updated')
           return (
             <>
               {/* Pending — takes remaining space */}
@@ -469,18 +522,43 @@ function CorrectionsPage() {
                 <div style={{ width: '32px', height: '3px', borderRadius: '2px', backgroundColor: 'var(--text-muted)', opacity: 0.3 }} />
               </div>
 
-              {/* Done — resizable via drag */}
+              {/* Updated — resizable via drag */}
               <div style={{ height: `${doneHeight}px`, flexShrink: 0, overflowY: 'auto' }}>
                 <div style={{ padding: '6px 14px 4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, backgroundColor: 'var(--surface-1)', zIndex: 1 }}>
-                  Done · {doneWords.length}
+                  Updated · {updatedWords.length}
                 </div>
-                {doneWords.length > 0 ? (
-                  doneWords.map(w => {
+                {updatedWords.length > 0 ? (
+                  updatedWords.map(w => {
                     const i = filtered.indexOf(w)
                     return <WordListRow key={w.word} w={w} isSelected={i === selectedIndex} onClick={() => { setSelectedIndex(i); scrollToWord(w.word) }} />
                   })
                 ) : (
-                  <div style={{ padding: '16px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No words completed yet</div>
+                  <div style={{ padding: '16px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No words submitted yet</div>
+                )}
+              </div>
+
+              {/* Rejected — fixed section below Updated */}
+              <div style={{ flexShrink: 0, borderTop: '1px solid var(--border-subtle)', maxHeight: '160px', overflowY: 'auto' }}>
+                <div style={{ padding: '6px 14px 4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', position: 'sticky', top: 0, backgroundColor: 'var(--surface-1)', zIndex: 1 }}>
+                  Rejected · {rejectedWords.length}
+                </div>
+                {rejectedWords.length > 0 ? (
+                  rejectedWords.map(w => {
+                    const i = filtered.indexOf(w)
+                    return (
+                      <div key={w.word} style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <WordListRow w={w} isSelected={i === selectedIndex} onClick={() => { setSelectedIndex(i); scrollToWord(w.word) }} />
+                        </div>
+                        <button
+                          onClick={e => { e.stopPropagation(); handleEdit(w.word) }}
+                          style={{ padding: '4px 8px', marginRight: '8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', flexShrink: 0 }}
+                        >Edit</button>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No rejected words</div>
                 )}
               </div>
             </>
@@ -581,7 +659,6 @@ function WordListRow({ w, isSelected, onClick }: { w: AnnotationWord; isSelected
     <div onClick={onClick} style={{
       padding: '9px 14px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer',
       backgroundColor: isSelected ? 'var(--surface-2)' : 'transparent',
-      borderLeft: isSelected ? '2px solid #a78bfa' : '2px solid transparent',
       transition: 'background-color 0.1s', display: 'flex', alignItems: 'center', gap: '8px',
     }}>
       <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: STATUS_DOT[w.status] ?? 'var(--text-muted)', flexShrink: 0 }} />
@@ -592,6 +669,18 @@ function WordListRow({ w, isSelected, onClick }: { w: AnnotationWord; isSelected
       <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>×{w.frequency}</span>
     </div>
   )
+}
+
+// ─── In-context sentence generator ───────────────────────────────────────────
+
+function generateContextSentences(word: string): [string, string, string] {
+  const cap = word.charAt(0).toUpperCase() + word.slice(1)
+  const low = word.toLowerCase()
+  return [
+    `${cap} is commonly used in this context.`,
+    `The word ${low} appears in many sentences.`,
+    `Here is an example using ${low}.`,
+  ]
 }
 
 // ─── WordCard — expanded annotation card ──────────────────────────────────────
@@ -615,7 +704,10 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
   const [playingPreview, setPlayingPreview] = useState(false)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
-  const [playMode, setPlayMode] = useState<'word' | 'sentence'>('word')
+  // Feature 1: In-context sentence preview states
+  const [sentencePlaying, setSentencePlaying] = useState<boolean[]>([false, false, false])
+  const [sentenceLoading, setSentenceLoading] = useState<boolean[]>([false, false, false])
+  const sentenceAudioRefs = useRef<Array<HTMLAudioElement | null>>([null, null, null])
   const [annotatorRecordState, setAnnotatorRecordState] = useState<'idle' | 'recording' | 'recorded'>('idle')
   const [annotatorRecordedUrl, setAnnotatorRecordedUrl] = useState<string | null>(null)
   const [playingAnnotatorRec, setPlayingAnnotatorRec] = useState(false)
@@ -626,8 +718,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
 
   // ── Feature 1: Speed control ──────────────────────────────────────────────
   const [speedRate, setSpeedRate] = useState<1 | 0.75 | 0.5 | 0.25>(1)
-
-  // ── Feature 2: In-context preview — shares playingPreview state via playMode ─
 
   // ── Feature 3: Comments per word ─────────────────────────────────────────
   const [showComment, setShowComment] = useState(false)
@@ -692,7 +782,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
     finally { setLoadingRecording(false) }
   }
 
-  // Unified play handler — behaviour depends on playMode toggle
+  // Play pronunciation in isolation
   const handlePlay = async () => {
     const bare = pronunciation.trim()
     if (!bare) return
@@ -700,14 +790,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
     if (previewAudioRef.current) previewAudioRef.current.pause()
     setLoadingPreview(true)
     try {
-      let url: string
-      if (playMode === 'sentence') {
-        // Embed current pronunciation inside a natural sentence
-        const sentence = `Please take your ${bare} as directed. ${bare} should be taken daily.`
-        url = await fetchPhoneticAudio(sentence, RIME_API_KEY, 'lagoon')
-      } else {
-        url = await fetchPhoneticAudio(bare, RIME_API_KEY, 'lagoon')
-      }
+      const url = await fetchPhoneticAudio(bare, RIME_API_KEY, 'lagoon')
       const audio = new Audio(url)
       audio.playbackRate = speedRate
       previewAudioRef.current = audio
@@ -715,6 +798,40 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
       await audio.play(); setPlayingPreview(true)
     } catch { /* fail silently */ }
     finally { setLoadingPreview(false) }
+  }
+
+  // Feature 1: Play word in a context sentence
+  const handlePlaySentence = async (sentIdx: 0 | 1 | 2) => {
+    if (sentencePlaying[sentIdx]) {
+      sentenceAudioRefs.current[sentIdx]?.pause()
+      setSentencePlaying(prev => prev.map((v, i) => i === sentIdx ? false : v))
+      return
+    }
+    // Stop any other sentence playing
+    sentenceAudioRefs.current.forEach(a => a?.pause())
+    setSentencePlaying([false, false, false])
+
+    setSentenceLoading(prev => prev.map((v, i) => i === sentIdx ? true : v))
+    try {
+      const sentences = generateContextSentences(word.word)
+      const sentence = sentences[sentIdx]
+      const bare = pronunciation.trim().replace(/^\{|\}$/g, '')
+      // Replace the word in the sentence with the phonetic notation
+      const textWithPhonetics = sentence.replace(
+        new RegExp(word.word, 'gi'),
+        `{${bare}}`
+      )
+      const url = await fetchPhoneticAudio(textWithPhonetics, RIME_API_KEY, 'lagoon')
+      const audio = new Audio(url)
+      audio.playbackRate = speedRate
+      sentenceAudioRefs.current[sentIdx] = audio
+      audio.onended = () => setSentencePlaying(prev => prev.map((v, i) => i === sentIdx ? false : v))
+      await audio.play()
+      setSentencePlaying(prev => prev.map((v, i) => i === sentIdx ? true : v))
+    } catch { /* fail silently */ }
+    finally {
+      setSentenceLoading(prev => prev.map((v, i) => i === sentIdx ? false : v))
+    }
   }
 
   const handlePlaySuggestion = async (idx: number) => {
@@ -832,7 +949,22 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
       {/* Context row — definition + recording + note */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)' }}>
         <div style={{ flex: 1, padding: '12px 20px', borderRight: '1px solid var(--border-subtle)' }}>
-          <FieldLabel>Definition</FieldLabel>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Definition</span>
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent(word.word)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              title={`Search "${word.word}" on Google`}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '4px', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent', color: 'var(--text-muted)', textDecoration: 'none', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7"/>
+                <path d="M8 1h3v3M11 1L6 6"/>
+              </svg>
+            </a>
+          </div>
           {word.definition ? (
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>{word.definition}</p>
           ) : (
@@ -990,7 +1122,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
       {/* Action bar — pronunciation input + submit/reject */}
       <div style={{
         padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px',
-        backgroundColor: isDone ? 'rgba(52,211,153,0.02)' : 'rgba(45,212,191,0.04)',
+        backgroundColor: 'var(--surface-2)',
         borderTop: '1px solid var(--border-subtle)',
         flexWrap: 'wrap',
       }}>
@@ -1009,45 +1141,22 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                 onBlur={() => setInputFocused(false)}
                 placeholder="{r0ImxfOn0xt0Ik}"
                 style={{
-                  width: '100%', padding: '8px 66px 8px 12px', borderRadius: '5px',
+                  width: '100%', padding: '8px 12px 8px 36px', borderRadius: '5px',
                   border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
                   backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
                   fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',
                 }}
               />
-              {/* W / S mode toggle */}
-              <div
-                style={{
-                  position: 'absolute', right: '36px', top: '50%', transform: 'translateY(-50%)',
-                  display: 'flex', borderRadius: '3px', overflow: 'hidden',
-                  border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-0)',
-                }}
-              >
-                {(['word', 'sentence'] as const).map(mode => (
-                  <button
-                    key={mode}
-                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setPlayMode(mode) }}
-                    title={mode === 'word' ? 'Play word pronunciation' : 'Play word in a sentence'}
-                    style={{
-                      padding: '3px 6px', fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em',
-                      border: 'none', cursor: 'pointer', lineHeight: 1,
-                      backgroundColor: playMode === mode ? 'var(--surface-3)' : 'transparent',
-                      color: playMode === mode ? 'var(--text-emphasis)' : 'var(--text-muted)',
-                      transition: 'background-color 0.1s, color 0.1s',
-                    }}
-                  >{mode === 'word' ? 'W' : 'S'}</button>
-                ))}
-              </div>
               {/* Play button */}
               <button
                 onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }}
                 disabled={!pronunciation.trim()}
-                title={playMode === 'word' ? 'Preview pronunciation' : 'Hear in a sentence'}
+                title="Preview pronunciation"
                 style={{
-                  position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                  position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)',
                   width: '24px', height: '24px', borderRadius: '50%',
                   border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)',
-                  color: playingPreview ? '#fbbf24' : playMode === 'sentence' ? '#2dd4bf' : 'var(--text-muted)',
+                  color: playingPreview ? '#fbbf24' : 'var(--text-muted)',
                   cursor: pronunciation.trim() ? 'pointer' : 'default',
                   opacity: pronunciation.trim() ? 1 : 0.3,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1109,6 +1218,43 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                     >×</button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Feature 1: In-context sentence preview */}
+            {pronunciation.trim() && (
+              <div style={{ flexBasis: '100%', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>In context</span>
+                {generateContextSentences(word.word).map((sentence, sentIdx) => {
+                  const positions = ['Start', 'Middle', 'End']
+                  const isPlaying = sentencePlaying[sentIdx]
+                  const isLoading = sentenceLoading[sentIdx]
+                  const wordLower = word.word.toLowerCase()
+                  const parts = sentence.split(new RegExp(`(${word.word})`, 'i'))
+                  return (
+                    <div key={sentIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+                      <button
+                        onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlaySentence(sentIdx as 0 | 1 | 2) }}
+                        style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)', color: isPlaying ? '#fbbf24' : '#2dd4bf', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {isLoading
+                          ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
+                          : isPlaying
+                            ? <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg>
+                            : <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>
+                        }
+                      </button>
+                      <span style={{ fontSize: '8px', color: 'var(--text-muted)', flexShrink: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', width: '34px' }}>{positions[sentIdx]}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1 }}>
+                        {parts.map((part, pi) =>
+                          part.toLowerCase() === wordLower
+                            ? <strong key={pi} style={{ color: 'var(--text-emphasis)', fontWeight: 700 }}>{part}</strong>
+                            : <span key={pi}>{part}</span>
+                        )}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
