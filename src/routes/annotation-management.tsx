@@ -231,7 +231,7 @@ function AnnotationManagementPage() {
                 onClick={() => { setSelectedIndex(i); scrollToWord(w.word) }}
                 style={{ padding: '8px 14px', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', backgroundColor: i === selectedIndex ? 'var(--surface-2)' : 'transparent', transition: 'background-color 0.1s', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: STATUS_DOT[w.status] ?? 'var(--text-muted)', flexShrink: 0 }} />
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: ann.color, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '12px', fontWeight: i === selectedIndex ? 600 : 400, color: 'var(--text-emphasis)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.word}</div>
                   <div style={{ fontSize: '10px', color: ann.color, marginTop: '1px', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -270,7 +270,7 @@ function AnnotationManagementPage() {
             </div>
           </div>
           <div style={{ height: '4px', borderRadius: '2px', backgroundColor: 'var(--surface-3)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', borderRadius: '2px', background: 'linear-gradient(90deg, #a78bfa, #2dd4bf)', transition: 'width 0.4s', width: filtered.length > 0 ? `${(approvedCount / filtered.length) * 100}%` : '0%' }} />
+            <div style={{ height: '100%', borderRadius: '2px', background: 'linear-gradient(90deg, #34d399, #2dd4bf)', transition: 'width 0.4s', width: filtered.length > 0 ? `${(approvedCount / filtered.length) * 100}%` : '0%' }} />
           </div>
         </div>
 
