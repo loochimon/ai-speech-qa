@@ -143,7 +143,7 @@ const RESEARCH_STORAGE_KEY = 'rime_research_session'
 
 function loadSession(): { text: string; results: Results | null; phonetics: Record<string, PhoneticResult>; submittedWords: string[]; flaggedWords: string[] } | null {
   try {
-    const raw = localStorage.getItem(RESEARCH_STORAGE_KEY)
+    const raw = sessionStorage.getItem(RESEARCH_STORAGE_KEY)
     if (!raw) return null
     return JSON.parse(raw)
   } catch { return null }
@@ -185,7 +185,7 @@ function ResearchPage() {
   // Persist session so navigating away and back restores state
   useEffect(() => {
     try {
-      localStorage.setItem(RESEARCH_STORAGE_KEY, JSON.stringify({
+      sessionStorage.setItem(RESEARCH_STORAGE_KEY, JSON.stringify({
         text,
         results,
         phonetics,
