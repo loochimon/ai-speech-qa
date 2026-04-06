@@ -609,6 +609,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
   const [playingPreview, setPlayingPreview] = useState(false)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const [playMode, setPlayMode] = useState<'word' | 'sentence'>('word')
   const [annotatorRecordState, setAnnotatorRecordState] = useState<'idle' | 'recording' | 'recorded'>('idle')
   const [annotatorRecordedUrl, setAnnotatorRecordedUrl] = useState<string | null>(null)
   const [playingAnnotatorRec, setPlayingAnnotatorRec] = useState(false)
@@ -620,10 +621,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
   // ── Feature 1: Speed control ──────────────────────────────────────────────
   const [speedRate, setSpeedRate] = useState<0.75 | 1 | 1.25>(1)
 
-  // ── Feature 2: In-context preview ────────────────────────────────────────
-  const [playingContext, setPlayingContext] = useState(false)
-  const [loadingContext, setLoadingContext] = useState(false)
-  const contextAudioRef = useRef<HTMLAudioElement | null>(null)
+  // ── Feature 2: In-context preview — shares playingPreview state via playMode ─
 
   // ── Feature 3: Comments per word ─────────────────────────────────────────
   const [showComment, setShowComment] = useState(false)
@@ -689,14 +687,22 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
     finally { setLoadingRecording(false) }
   }
 
-  const handlePlayPreview = async () => {
+  // Unified play handler — behaviour depends on playMode toggle
+  const handlePlay = async () => {
     const bare = pronunciation.trim()
     if (!bare) return
     if (playingPreview) { previewAudioRef.current?.pause(); setPlayingPreview(false); return }
     if (previewAudioRef.current) previewAudioRef.current.pause()
     setLoadingPreview(true)
     try {
-      const url = await fetchPhoneticAudio(bare, RIME_API_KEY, 'lagoon')
+      let url: string
+      if (playMode === 'sentence') {
+        // Embed current pronunciation inside a natural sentence
+        const sentence = `Please take your ${bare} as directed. ${bare} should be taken daily.`
+        url = await fetchPhoneticAudio(sentence, RIME_API_KEY, 'lagoon')
+      } else {
+        url = await fetchPhoneticAudio(bare, RIME_API_KEY, 'lagoon')
+      }
       const audio = new Audio(url)
       audio.playbackRate = speedRate
       previewAudioRef.current = audio
@@ -704,29 +710,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
       await audio.play(); setPlayingPreview(true)
     } catch { /* fail silently */ }
     finally { setLoadingPreview(false) }
-  }
-
-  // Feature 2: hear word inside a sentence using current pronunciation
-  const handlePlayContext = async () => {
-    if (playingContext) { contextAudioRef.current?.pause(); setPlayingContext(false); return }
-    if (contextAudioRef.current) contextAudioRef.current.pause()
-    setLoadingContext(true)
-    const bare = pronunciation.trim()
-    // Build a sentence that embeds the word in context
-    const sentence = bare
-      ? `Please take your ${bare} as directed. ${bare} should be taken daily.`
-      : `Please take your ${word.word} as directed.`
-    try {
-      const url = bare
-        ? await fetchPhoneticAudio(sentence, RIME_API_KEY, 'lagoon')
-        : await fetchWordAudio(sentence, RIME_API_KEY, 'lagoon')
-      const audio = new Audio(url)
-      audio.playbackRate = speedRate
-      contextAudioRef.current = audio
-      audio.onended = () => setPlayingContext(false)
-      await audio.play(); setPlayingContext(true)
-    } catch { /* fail silently */ }
-    finally { setLoadingContext(false) }
   }
 
   const handlePlaySuggestion = async (idx: number) => {
@@ -1029,7 +1012,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
           <>
             <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', flexShrink: 0 }}>Pronunciation</span>
 
-            {/* Pronunciation input + preview play button */}
+            {/* Pronunciation input + W/S mode toggle + play button */}
             <div style={{ flexGrow: 1, flexShrink: 1, minWidth: '120px', position: 'relative' }}>
               <input
                 value={pronunciation}
@@ -1040,21 +1023,45 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
                 onBlur={() => setInputFocused(false)}
                 placeholder="{r0ImxfOn0xt0Ik}"
                 style={{
-                  width: '100%', padding: '8px 32px 8px 12px', borderRadius: '5px',
+                  width: '100%', padding: '8px 66px 8px 12px', borderRadius: '5px',
                   border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
                   backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
                   fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',
                 }}
               />
+              {/* W / S mode toggle */}
+              <div
+                style={{
+                  position: 'absolute', right: '36px', top: '50%', transform: 'translateY(-50%)',
+                  display: 'flex', borderRadius: '3px', overflow: 'hidden',
+                  border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-0)',
+                }}
+              >
+                {(['word', 'sentence'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); setPlayMode(mode) }}
+                    title={mode === 'word' ? 'Play word pronunciation' : 'Play word in a sentence'}
+                    style={{
+                      padding: '3px 6px', fontSize: '9px', fontWeight: 700, letterSpacing: '0.04em',
+                      border: 'none', cursor: 'pointer', lineHeight: 1,
+                      backgroundColor: playMode === mode ? 'var(--surface-3)' : 'transparent',
+                      color: playMode === mode ? 'var(--text-emphasis)' : 'var(--text-muted)',
+                      transition: 'background-color 0.1s, color 0.1s',
+                    }}
+                  >{mode === 'word' ? 'W' : 'S'}</button>
+                ))}
+              </div>
+              {/* Play button */}
               <button
-                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlayPreview() }}
+                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }}
                 disabled={!pronunciation.trim()}
-                title="Preview pronunciation"
+                title={playMode === 'word' ? 'Preview pronunciation' : 'Hear in a sentence'}
                 style={{
                   position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
-                  width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                  width: '24px', height: '24px', borderRadius: '50%',
                   border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)',
-                  color: playingPreview ? '#fbbf24' : 'var(--text-muted)',
+                  color: playingPreview ? '#fbbf24' : playMode === 'sentence' ? '#2dd4bf' : 'var(--text-muted)',
                   cursor: pronunciation.trim() ? 'pointer' : 'default',
                   opacity: pronunciation.trim() ? 1 : 0.3,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1089,28 +1096,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onClick }:
                 </div>
               </div>
             )}
-
-            {/* Feature 2: In-context preview button */}
-            <button
-              onClick={e => { e.stopPropagation(); handlePlayContext() }}
-              title="Hear word in a full sentence"
-              style={{
-                padding: '8px 12px', borderRadius: '5px', fontSize: '11px', fontWeight: 500, flexShrink: 0,
-                border: '1px solid var(--border-default)', backgroundColor: playingContext ? 'rgba(45,212,191,0.08)' : 'transparent',
-                color: playingContext ? '#2dd4bf' : 'var(--text-secondary)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px',
-              }}
-            >
-              {loadingContext ? (
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'currentColor', display: 'inline-block' }} />
-              ) : (
-                <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M2 6h1.5M8.5 6H10M6 2v1.5M6 8.5V10"/>
-                  <circle cx="6" cy="6" r="2" fill="currentColor" opacity="0.5"/>
-                </svg>
-              )}
-              {playingContext ? 'Playing…' : 'In sentence'}
-            </button>
 
             {/* Record button */}
             <button
