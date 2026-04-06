@@ -323,7 +323,7 @@ function ReviewWordCard({ word, annotator, isHighlighted, cardRef, onClick, onAp
   const isDone     = word.status === 'Updated' || word.status === 'Rejected' || word.status === 'Approved'
   const isApproved = word.status === 'Approved'
   const speedOptions: Array<1 | 0.75 | 0.5 | 0.25> = [1, 0.75, 0.5, 0.25]
-  const pronunciation = word.rime ? `{${word.rime}}` : ''
+  const [pronunciation, setPronunciation] = useState(word.rime ? `{${word.rime}}` : '')
 
   const handlePlayRecording = async () => {
     if (playingRecording) { recordingAudioRef.current?.pause(); setPlayingRecording(false); return }
@@ -488,7 +488,7 @@ function ReviewWordCard({ word, annotator, isHighlighted, cardRef, onClick, onAp
           <>
             {pronunciation && (
               <div style={{ flexGrow: 1, flexShrink: 1, minWidth: '120px', position: 'relative' }}>
-                <input readOnly value={pronunciation} style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-3)', fontFamily: 'monospace', fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box' }} />
+                <input value={pronunciation} onChange={e => setPronunciation(e.target.value)} style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-3)', fontFamily: 'monospace', fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box' }} />
                 <button onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }} style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)', color: playingPreview ? '#fbbf24' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {loadingPreview ? <span style={{ width: '6px', height: '6px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} /> : playingPreview ? <svg width="6" height="7" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg> : <svg width="5" height="7" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>}
                 </button>
