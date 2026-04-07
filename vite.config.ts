@@ -18,6 +18,11 @@ const config = defineConfig({
         changeOrigin: true,
         rewrite: () => '/data/voices/voice_details.json',
       },
+      '/api/oov': {
+        target: 'https://users.rime.ai',
+        changeOrigin: true,
+        rewrite: () => '/oov',
+      },
     },
   },
   plugins: [
