@@ -1180,7 +1180,7 @@ function ResearchPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Not in dictionary</div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: results.oovWords.length > 0 ? '#f87171' : '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{results.oovWords.length.toLocaleString()}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#34d399', fontVariantNumeric: 'tabular-nums' }}>{results.oovWords.length.toLocaleString()}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>In dictionary</div>
