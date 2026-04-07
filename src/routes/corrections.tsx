@@ -614,9 +614,11 @@ function CorrectionsPage() {
                 <span style={{ fontFamily: 'monospace' }}>{filtered.length}</span>
                 {' '}completed
               </span>
-              <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'monospace', color: filtered.length > 0 ? '#34d399' : 'var(--text-muted)' }}>
-                {filtered.length > 0 ? Math.round((done / filtered.length) * 100) : 0}%
-              </span>
+              {(() => {
+                const pct = filtered.length > 0 ? Math.round((done / filtered.length) * 100) : 0
+                const color = pct > 50 ? '#34d399' : '#f87171'
+                return <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'monospace', color }}>{pct}%</span>
+              })()}
             </div>
           </div>
           <div style={{ height: '4px', borderRadius: '2px', backgroundColor: 'var(--surface-3)', overflow: 'hidden' }}>
@@ -1135,7 +1137,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
             <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
 
               {/* Play + input */}
-              <div style={{ position: 'relative', flexShrink: 1, minWidth: '80px' }}>
+              <div style={{ position: 'relative', flexShrink: 1, flexGrow: 1, minWidth: '80px' }}>
                 <input
                   value={pronunciation}
                   onChange={e => setPronunciation(e.target.value)}
@@ -1145,7 +1147,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                   onBlur={() => setInputFocused(false)}
                   placeholder="{r0ImxfOn0xt0Ik}"
                   style={{
-                    width: '130px', padding: '6px 8px 6px 28px', borderRadius: '5px',
+                    width: '100%', padding: '6px 8px 6px 28px', borderRadius: '5px',
                     border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
                     backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
                     fontSize: '11px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',

@@ -785,8 +785,7 @@ function ResearchPage() {
   const isBusy = generatingScript || status === 'checking'
 
   const coverageColor = !results ? 'text-white'
-    : results.coveragePct >= 95 ? 'text-emerald-400'
-    : results.coveragePct >= 80 ? 'text-amber-400'
+    : results.coveragePct > 50 ? 'text-emerald-400'
     : 'text-red-400'
 
   const barColor = !results ? 'bg-[#3b3b3b]'
@@ -2212,8 +2211,7 @@ function timeAgo(date: Date): string {
 }
 
 function coverageBadgeStyle(pct: number): React.CSSProperties {
-  if (pct >= 95) return { backgroundColor: 'rgba(52,211,153,0.12)', color: '#34d399' }
-  if (pct >= 80) return { backgroundColor: 'rgba(251,191,36,0.12)', color: '#fbbf24' }
+  if (pct > 50) return { backgroundColor: 'rgba(52,211,153,0.12)', color: '#34d399' }
   return { backgroundColor: 'rgba(248,113,113,0.12)', color: '#f87171' }
 }
 
