@@ -979,8 +979,9 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                 onClick={e => { e.stopPropagation(); handlePlayRecording() }}
                 style={{
                   width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                  border: '1px solid var(--border-subtle)', backgroundColor: playingRecording ? 'rgba(251,191,36,0.1)' : 'var(--surface-2)',
-                  color: playingRecording ? '#fbbf24' : 'var(--text-muted)', cursor: 'pointer',
+                  backgroundColor: playingRecording ? 'rgba(251,191,36,0.1)' : 'rgba(45,212,191,0.08)',
+                  border: playingRecording ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(45,212,191,0.25)',
+                  color: playingRecording ? '#fbbf24' : '#2dd4bf', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
@@ -1042,8 +1043,9 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                   onClick={e => { e.stopPropagation(); handlePlaySuggestion(idx) }}
                   style={{
                     width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
-                    border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)',
-                    color: isPlaying ? '#fbbf24' : 'var(--text-muted)', cursor: 'pointer',
+                    backgroundColor: isPlaying ? 'rgba(251,191,36,0.1)' : 'rgba(45,212,191,0.08)',
+                    border: isPlaying ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(45,212,191,0.25)',
+                    color: isPlaying ? '#fbbf24' : '#2dd4bf', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
@@ -1155,8 +1157,9 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                 style={{
                   position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)',
                   width: '24px', height: '24px', borderRadius: '50%',
-                  border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)',
-                  color: playingPreview ? '#fbbf24' : 'var(--text-muted)',
+                  backgroundColor: playingPreview ? 'rgba(251,191,36,0.1)' : 'rgba(45,212,191,0.08)',
+                  border: playingPreview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(45,212,191,0.25)',
+                  color: playingPreview ? '#fbbf24' : '#2dd4bf',
                   cursor: pronunciation.trim() ? 'pointer' : 'default',
                   opacity: pronunciation.trim() ? 1 : 0.3,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1235,7 +1238,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
                     <div key={sentIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
                       <button
                         onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlaySentence(sentIdx as 0 | 1 | 2) }}
-                        style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-3)', color: isPlaying ? '#fbbf24' : '#2dd4bf', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, backgroundColor: isPlaying ? 'rgba(251,191,36,0.1)' : 'rgba(45,212,191,0.08)', border: isPlaying ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(45,212,191,0.25)', color: isPlaying ? '#fbbf24' : '#2dd4bf', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         {isLoading
                           ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
