@@ -708,6 +708,7 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
   const [sentencePlaying, setSentencePlaying] = useState<boolean[]>([false, false, false])
   const [sentenceLoading, setSentenceLoading] = useState<boolean[]>([false, false, false])
   const sentenceAudioRefs = useRef<Array<HTMLAudioElement | null>>([null, null, null])
+  const [activeSentenceTab, setActiveSentenceTab] = useState<0 | 1 | 2>(0)
   const [annotatorRecordState, setAnnotatorRecordState] = useState<'idle' | 'recording' | 'recorded'>('idle')
   const [annotatorRecordedUrl, setAnnotatorRecordedUrl] = useState<string | null>(null)
   const [playingAnnotatorRec, setPlayingAnnotatorRec] = useState(false)
@@ -1130,49 +1131,106 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
       }}>
         {!isDone ? (
           <>
-            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', flexShrink: 0 }}>Pronunciation</span>
+            {/* PREVIEW section: input + in-context tab switcher */}
+            <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
 
-            {/* Pronunciation input + W/S mode toggle + play button */}
-            <div style={{ flexGrow: 1, flexShrink: 1, minWidth: '120px', position: 'relative' }}>
-              <input
-                value={pronunciation}
-                onChange={e => setPronunciation(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); handleSubmit() } }}
-                onClick={e => e.stopPropagation()}
-                onFocus={() => setInputFocused(true)}
-                onBlur={() => setInputFocused(false)}
-                placeholder="{r0ImxfOn0xt0Ik}"
-                style={{
-                  width: '100%', padding: '8px 12px 8px 36px', borderRadius: '5px',
-                  border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
-                  backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
-                  fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',
-                }}
-              />
-              {/* Play button */}
-              <button
-                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }}
-                disabled={!pronunciation.trim()}
-                title="Preview pronunciation"
-                style={{
-                  position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)',
-                  width: '24px', height: '24px', borderRadius: '50%',
-                  backgroundColor: playingPreview ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)',
-                  border: playingPreview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)',
-                  color: playingPreview ? '#fbbf24' : '#2dd4bf',
-                  cursor: pronunciation.trim() ? 'pointer' : 'default',
-                  opacity: pronunciation.trim() ? 1 : 0.3,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                {loadingPreview ? (
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
-                ) : playingPreview ? (
-                  <svg width="6" height="7" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg>
-                ) : (
-                  <svg width="5" height="7" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>
-                )}
-              </button>
+              {/* Row 1: label + input (auto-width) + play button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', flexShrink: 0 }}>Pronunciation</span>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <input
+                    value={pronunciation}
+                    onChange={e => setPronunciation(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); handleSubmit() } }}
+                    onClick={e => e.stopPropagation()}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
+                    placeholder="{r0ImxfOn0xt0Ik}"
+                    style={{
+                      width: '220px', padding: '6px 10px 6px 32px', borderRadius: '5px',
+                      border: `1px solid ${inputFocused ? 'rgba(45,212,191,0.5)' : 'var(--border-default)'}`,
+                      backgroundColor: 'var(--surface-2)', fontFamily: 'monospace',
+                      fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                  <button
+                    onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }}
+                    disabled={!pronunciation.trim()}
+                    title="Preview pronunciation"
+                    style={{
+                      position: 'absolute', left: '5px', top: '50%', transform: 'translateY(-50%)',
+                      width: '22px', height: '22px', borderRadius: '50%',
+                      backgroundColor: playingPreview ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)',
+                      border: playingPreview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)',
+                      color: playingPreview ? '#fbbf24' : 'rgba(255,255,255,0.45)',
+                      cursor: pronunciation.trim() ? 'pointer' : 'default',
+                      opacity: pronunciation.trim() ? 1 : 0.3,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {loadingPreview ? (
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
+                    ) : playingPreview ? (
+                      <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg>
+                    ) : (
+                      <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 2: In-context tab switcher */}
+              {pronunciation.trim() && (() => {
+                const positions: Array<'Start' | 'Middle' | 'End'> = ['Start', 'Middle', 'End']
+                const sentences = generateContextSentences(word.word)
+                const sentence = sentences[activeSentenceTab]
+                const isPlaying = sentencePlaying[activeSentenceTab]
+                const isLoading = sentenceLoading[activeSentenceTab]
+                const wordLower = word.word.toLowerCase()
+                const parts = sentence.split(new RegExp(`(${word.word})`, 'i'))
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {/* Tabs */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginRight: '6px' }}>In context</span>
+                      {positions.map((pos, idx) => (
+                        <button
+                          key={pos}
+                          onClick={e => { e.stopPropagation(); setActiveSentenceTab(idx as 0 | 1 | 2) }}
+                          style={{
+                            padding: '2px 8px', borderRadius: '3px', fontSize: '9px', fontWeight: 600,
+                            textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer',
+                            border: activeSentenceTab === idx ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent',
+                            backgroundColor: activeSentenceTab === idx ? 'var(--surface-3)' : 'transparent',
+                            color: activeSentenceTab === idx ? 'var(--text-emphasis)' : 'var(--text-muted)',
+                          }}
+                        >{pos}</button>
+                      ))}
+                    </div>
+                    {/* Single sentence row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
+                      <button
+                        onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlaySentence(activeSentenceTab) }}
+                        style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, backgroundColor: isPlaying ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)', border: isPlaying ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)', color: isPlaying ? '#fbbf24' : 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {isLoading
+                          ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
+                          : isPlaying
+                            ? <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg>
+                            : <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>
+                        }
+                      </button>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1 }}>
+                        {parts.map((part, pi) =>
+                          part.toLowerCase() === wordLower
+                            ? <strong key={pi} style={{ color: 'var(--text-emphasis)', fontWeight: 700 }}>{part}</strong>
+                            : <span key={pi}>{part}</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Feature 5: Diff indicator — inline pill when there's a change */}
@@ -1224,42 +1282,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
               </div>
             )}
 
-            {/* Feature 1: In-context sentence preview */}
-            {pronunciation.trim() && (
-              <div style={{ flexBasis: '100%', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>In context</span>
-                {generateContextSentences(word.word).map((sentence, sentIdx) => {
-                  const positions = ['Start', 'Middle', 'End']
-                  const isPlaying = sentencePlaying[sentIdx]
-                  const isLoading = sentenceLoading[sentIdx]
-                  const wordLower = word.word.toLowerCase()
-                  const parts = sentence.split(new RegExp(`(${word.word})`, 'i'))
-                  return (
-                    <div key={sentIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-2)', border: '1px solid var(--border-subtle)' }}>
-                      <button
-                        onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlaySentence(sentIdx as 0 | 1 | 2) }}
-                        style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, backgroundColor: isPlaying ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)', border: isPlaying ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)', color: isPlaying ? '#fbbf24' : 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        {isLoading
-                          ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} />
-                          : isPlaying
-                            ? <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg>
-                            : <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>
-                        }
-                      </button>
-                      <span style={{ fontSize: '8px', color: 'var(--text-muted)', flexShrink: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', width: '34px' }}>{positions[sentIdx]}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1 }}>
-                        {parts.map((part, pi) =>
-                          part.toLowerCase() === wordLower
-                            ? <strong key={pi} style={{ color: 'var(--text-emphasis)', fontWeight: 700 }}>{part}</strong>
-                            : <span key={pi}>{part}</span>
-                        )}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
 
             {/* Record button */}
             <button
