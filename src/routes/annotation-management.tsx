@@ -315,6 +315,7 @@ function ReviewWordCard({ word, annotator, isHighlighted, cardRef, onClick, onAp
   const [sentencePlaying, setSentencePlaying] = useState<boolean[]>([false, false, false])
   const [sentenceLoading, setSentenceLoading] = useState<boolean[]>([false, false, false])
   const sentenceAudioRefs = useRef<Array<HTMLAudioElement | null>>([null, null, null])
+  const [activeSentenceTab, setActiveSentenceTab] = useState<0 | 1 | 2>(0)
   const audioRef           = useRef<HTMLAudioElement | null>(null)
   const recordingAudioRef  = useRef<HTMLAudioElement | null>(null)
   const previewAudioRef    = useRef<HTMLAudioElement | null>(null)
@@ -485,36 +486,39 @@ function ReviewWordCard({ word, annotator, isHighlighted, cardRef, onClick, onAp
       <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'var(--surface-2)', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
         {isDone ? (
           <>
-            {pronunciation && (
-              <div style={{ flexGrow: 1, flexShrink: 1, minWidth: '120px', position: 'relative' }}>
-                <input value={pronunciation} onChange={e => setPronunciation(e.target.value)} style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-3)', fontFamily: 'monospace', fontSize: '12px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box' }} />
-                <button onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }} style={{ position: 'absolute', left: '6px', top: '50%', transform: 'translateY(-50%)', width: '24px', height: '24px', borderRadius: '50%', backgroundColor: playingPreview ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)', border: playingPreview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)', color: playingPreview ? '#fbbf24' : 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {loadingPreview ? <span style={{ width: '6px', height: '6px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} /> : playingPreview ? <svg width="6" height="7" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg> : <svg width="5" height="7" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>}
+            {/* Compact single-line: input · S M E tabs · play · sentence */}
+            <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+              <div style={{ position: 'relative', flexShrink: 1, flexGrow: 1, minWidth: '80px' }}>
+                <input value={pronunciation} onChange={e => setPronunciation(e.target.value)} onClick={e => e.stopPropagation()} style={{ width: '100%', padding: '6px 8px 6px 28px', borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-3)', fontFamily: 'monospace', fontSize: '11px', color: '#2dd4bf', outline: 'none', boxSizing: 'border-box' }} />
+                <button onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlay() }} style={{ position: 'absolute', left: '4px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: playingPreview ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)', border: playingPreview ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)', color: playingPreview ? '#fbbf24' : 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {loadingPreview ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} /> : playingPreview ? <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg> : <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>}
                 </button>
               </div>
-            )}
-            {pronunciation && (
-              <div style={{ flexBasis: '100%', marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>In context</span>
-                {generateContextSentences(word.word).map((sentence, sentIdx) => {
-                  const positions = ['Start', 'Middle', 'End']
-                  const isPlaying = sentencePlaying[sentIdx]; const isLoading = sentenceLoading[sentIdx]
-                  const wordLower = word.word.toLowerCase()
-                  const parts = sentence.split(new RegExp(`(${word.word})`, 'i'))
-                  return (
-                    <div key={sentIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-3)', border: '1px solid var(--border-subtle)' }}>
-                      <button onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlaySentence(sentIdx as 0 | 1 | 2) }} style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, backgroundColor: isPlaying ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)', border: isPlaying ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)', color: isPlaying ? '#fbbf24' : 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {isLoading ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} /> : isPlaying ? <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg> : <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>}
-                      </button>
-                      <span style={{ fontSize: '8px', color: 'var(--text-muted)', flexShrink: 0, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', width: '34px' }}>{positions[sentIdx]}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', flex: 1 }}>
-                        {parts.map((part, pi) => part.toLowerCase() === wordLower ? <strong key={pi} style={{ color: 'var(--text-emphasis)', fontWeight: 700 }}>{part}</strong> : <span key={pi}>{part}</span>)}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+              {pronunciation && (() => {
+                const labels = ['S', 'M', 'E']
+                const fullLabels = ['Start', 'Middle', 'End']
+                const sentences = generateContextSentences(word.word)
+                const sentence = sentences[activeSentenceTab]
+                const isPlaying = sentencePlaying[activeSentenceTab]
+                const isLoading = sentenceLoading[activeSentenceTab]
+                const wordLower = word.word.toLowerCase()
+                const parts = sentence.split(new RegExp(`(${word.word})`, 'i'))
+                return (
+                  <>
+                    <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--border-subtle)', flexShrink: 0 }} />
+                    {labels.map((lbl, idx) => (
+                      <button key={lbl} onClick={e => { e.stopPropagation(); setActiveSentenceTab(idx as 0 | 1 | 2) }} title={fullLabels[idx]} style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', flexShrink: 0, border: activeSentenceTab === idx ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent', backgroundColor: activeSentenceTab === idx ? 'var(--surface-2)' : 'transparent', color: activeSentenceTab === idx ? 'var(--text-emphasis)' : 'var(--text-muted)' }}>{lbl}</button>
+                    ))}
+                    <button onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handlePlaySentence(activeSentenceTab) }} style={{ width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0, backgroundColor: isPlaying ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.06)', border: isPlaying ? '1px solid rgba(251,191,36,0.3)' : '1px solid rgba(255,255,255,0.12)', color: isPlaying ? '#fbbf24' : 'rgba(255,255,255,0.45)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {isLoading ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'var(--text-muted)', display: 'inline-block' }} /> : isPlaying ? <svg width="5" height="6" viewBox="0 0 8 9" fill="currentColor"><rect x="0" y="0" width="2.5" height="9" rx="0.5"/><rect x="5" y="0" width="2.5" height="9" rx="0.5"/></svg> : <svg width="4" height="6" viewBox="0 0 7 9" fill="currentColor"><path d="M0.5 1L6.5 4.5L0.5 8V1Z"/></svg>}
+                    </button>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                      {parts.map((part, pi) => part.toLowerCase() === wordLower ? <strong key={pi} style={{ color: 'var(--text-emphasis)', fontWeight: 700 }}>{part}</strong> : <span key={pi}>{part}</span>)}
+                    </span>
+                  </>
+                )
+              })()}
+            </div>
             <div style={{ flexBasis: '100%', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
               <div style={{ padding: '8px 12px', borderRadius: '5px', fontSize: '12px', backgroundColor: isApproved ? 'rgba(45,212,191,0.06)' : word.status === 'Updated' ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)', border: `1px solid ${isApproved ? 'rgba(45,212,191,0.2)' : word.status === 'Updated' ? 'rgba(52,211,153,0.2)' : 'rgba(248,113,113,0.2)'}`, color: isApproved ? '#2dd4bf' : word.status === 'Updated' ? '#34d399' : '#f87171' }}>
                 {isApproved ? `✓ Approved: {${word.rime}}` : word.status === 'Updated' ? `Submitted: {${word.rime}}` : '✗ Rejected'}
