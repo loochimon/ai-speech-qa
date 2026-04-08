@@ -921,22 +921,73 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
             ))}
           </div>
           {/* Comment toggle */}
-          <button
-            onClick={e => { e.stopPropagation(); setShowComment(v => !v) }}
-            title="Annotator note"
-            style={{
-              padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: showComment || comment ? 'rgba(139,92,246,0.08)' : 'transparent',
-              color: comment ? '#a78bfa' : 'var(--text-muted)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-            }}
-          >
-            <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M1 1h10v7H7l-3 3V8H1V1z"/>
-            </svg>
-            Note{comment ? ' ·' : ''}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={e => { e.stopPropagation(); setShowComment(v => !v) }}
+              title="Annotator note"
+              style={{
+                padding: '3px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500,
+                border: `1px solid ${showComment || comment ? 'rgba(139,92,246,0.4)' : 'var(--border-subtle)'}`,
+                backgroundColor: showComment || comment ? 'rgba(139,92,246,0.08)' : 'transparent',
+                color: comment ? '#a78bfa' : 'var(--text-muted)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+              }}
+            >
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M1 1h10v7H7l-3 3V8H1V1z"/>
+              </svg>
+              Note{comment ? ' ·' : ''}
+            </button>
+            {showComment && (
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: 'absolute', right: 0, top: '30px', zIndex: 50,
+                  width: '280px', borderRadius: '8px',
+                  backgroundColor: 'var(--surface-1)',
+                  border: '1px solid var(--border-default)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                  padding: '12px',
+                  display: 'flex', flexDirection: 'column', gap: '10px',
+                }}
+              >
+                <textarea
+                  autoFocus
+                  value={comment}
+                  onChange={e => setComment(e.target.value)}
+                  placeholder="Add context or priority notes…"
+                  rows={3}
+                  style={{
+                    width: '100%', resize: 'none', outline: 'none',
+                    backgroundColor: 'var(--surface-2)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '5px', padding: '8px 10px',
+                    fontSize: '12px', color: 'var(--text-emphasis)', lineHeight: 1.5,
+                    boxSizing: 'border-box', fontFamily: 'inherit',
+                  }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowComment(false) }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
+                      fontWeight: 500, cursor: 'pointer',
+                      border: '1px solid var(--border-default)',
+                      backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                    }}
+                  >Cancel</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowComment(false) }}
+                    style={{
+                      flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
+                      fontWeight: 600, cursor: 'pointer',
+                      border: 'none', backgroundColor: '#ffffff', color: '#000000',
+                    }}
+                  >Save</button>
+                </div>
+              </div>
+            )}
+          </div>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{word.date}</span>
           {isDone && (
             <span style={{
@@ -1358,38 +1409,6 @@ function WordCard({ word, isHighlighted, cardRef, onSubmit, onReject, onEdit, on
         )}
       </div>
 
-      {/* Feature 3: Annotator comment section */}
-      {showComment && (
-        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'rgba(139,92,246,0.03)' }}>
-          <FieldLabel>Annotator Note</FieldLabel>
-          <textarea
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            onClick={e => e.stopPropagation()}
-            placeholder="Leave a note for another annotator — e.g. stress pattern confirmed by client, or flagging ambiguity…"
-            rows={2}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '8px 12px', borderRadius: '5px',
-              border: '1px solid var(--border-default)',
-              backgroundColor: 'var(--surface-2)',
-              color: 'var(--text-emphasis)', fontSize: '12px', lineHeight: 1.5,
-              resize: 'vertical', outline: 'none', fontFamily: 'inherit',
-            }}
-            onFocus={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(139,92,246,0.4)' }}
-            onBlur={e => { (e.target as HTMLTextAreaElement).style.borderColor = 'var(--border-default)' }}
-          />
-          {comment && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{comment.length} chars</span>
-              <button
-                onClick={e => { e.stopPropagation(); setComment('') }}
-                style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
-              >Clear</button>
-            </div>
-          )}
-        </div>
-      )}
 
     </div>
   )

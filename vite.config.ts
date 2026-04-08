@@ -23,6 +23,11 @@ const config = defineConfig({
         changeOrigin: true,
         rewrite: () => '/oov',
       },
+      '/api/rime-tts': {
+        target: 'https://users.rime.ai',
+        changeOrigin: true,
+        rewrite: () => '/v1/rime-tts',
+      },
     },
   },
   plugins: [

@@ -1,6 +1,13 @@
 {
   "outputDirectory": "dist/client",
   "rewrites": [
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/voices",
+      "destination": "https://users.rime.ai/data/voices/voice_details.json"
+    },
+    {
+      "source": "/((?!assets/)(?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

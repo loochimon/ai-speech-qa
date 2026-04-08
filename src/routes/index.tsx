@@ -116,6 +116,7 @@ interface Results {
   oovWords: OovWord[]
   oovTokenCount: number
   coveragePct: number
+  wordSentences: Record<string, string[]>
 }
 
 interface Toast { id: string; message: string }
@@ -330,7 +331,19 @@ function ResearchPage() {
       const coveragePct = uniqueWords.length > 0
         ? ((uniqueWords.length - oovWords.length) / uniqueWords.length) * 100
         : 100
-      const newResults: Results = { totalTokens, uniqueWordCount: uniqueWords.length, oovWords, oovTokenCount, coveragePct }
+      // Build word → sentences map
+      const sentences = textToCheck
+        .split(/(?<=[.!?])\s+/)
+        .map(s => s.trim())
+        .filter(Boolean)
+      const wordSentences: Record<string, string[]> = {}
+      for (const oovWord of oovWords) {
+        const key = oovWord.word.toLowerCase()
+        wordSentences[oovWord.word] = sentences.filter(s =>
+          s.toLowerCase().split(/\W+/).includes(key)
+        )
+      }
+      const newResults: Results = { totalTokens, uniqueWordCount: uniqueWords.length, oovWords, oovTokenCount, coveragePct, wordSentences }
       setResults(newResults)
       setStatus('done')
       setResultsStale(false)
@@ -829,10 +842,10 @@ function ResearchPage() {
         borderBottom: '0.5px solid #383838',
       }}>
         {/* Search input — matches left panel width */}
-        <div style={{ width: '398px', flexShrink: 0 }}>
+        <div style={{ width: '200px', flexShrink: 0 }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '8px 12px',
+            padding: '6px 10px',
             backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
           }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
@@ -849,36 +862,36 @@ function ResearchPage() {
           </div>
         </div>
         {/* Filter dropdowns */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Voice */}
-          <div style={{ width: '299px', flexShrink: 0 }}>
-            <span style={{ display: 'block', fontSize: '11px', color: '#A5A5A5', marginBottom: '4px', fontWeight: 500 }}>Voice</span>
+          <div style={{ flexShrink: 0 }}>
             <VoicePicker
               voices={voices}
               selected={selectedVoice}
               onSelect={v => { setSelectedVoice(v); audioCache.current.clear() }}
+              label="Voice"
             />
           </div>
           {/* Language */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: '11px', color: '#A5A5A5', marginBottom: '4px', fontWeight: 500 }}>Language</span>
+          <div style={{ width: '140px', flexShrink: 0 }}>
             <div style={{
-              padding: '8px 12px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
-              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+              padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
+              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
             }}>
+              <span style={{ color: '#A5A5A5', flexShrink: 0 }}>Language</span>
               <span>All</span>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
           </div>
           {/* Time */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: '11px', color: '#A5A5A5', marginBottom: '4px', fontWeight: 500 }}>Time</span>
+          <div style={{ width: '130px', flexShrink: 0 }}>
             <div style={{
-              padding: '8px 12px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
-              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
+              padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
+              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
             }}>
+              <span style={{ color: '#A5A5A5', flexShrink: 0 }}>Time</span>
               <span>All Time</span>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
           </div>
         </div>
@@ -892,16 +905,16 @@ function ResearchPage() {
 
           {/* Script label + AI Generate + Upload */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontWeight: 600, fontSize: '20px', color: '#FFFFFF' }}>Script</span>
+            <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>Script</span>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div ref={generateRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => setShowGeneratePopover(p => !p)}
                   disabled={isBusy}
                   style={{
-                    backgroundColor: '#161616', borderRadius: '5px', padding: '8px 12px',
+                    backgroundColor: '#161616', borderRadius: '5px', padding: '5px 10px',
                     border: '0.5px solid #434343', display: 'flex', alignItems: 'center', gap: '6px',
-                    cursor: 'pointer', fontSize: '13px', color: '#A5A5A5',
+                    cursor: 'pointer', fontSize: '12px', color: '#A5A5A5',
                     opacity: isBusy ? 0.5 : 1,
                   }}
                 >
@@ -964,8 +977,8 @@ function ResearchPage() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isBusy}
                 style={{
-                  backgroundColor: '#161616', borderRadius: '5px', padding: '8px 12px',
-                  border: '0.5px solid #434343', cursor: 'pointer', fontSize: '13px', color: '#A5A5A5',
+                  backgroundColor: '#161616', borderRadius: '5px', padding: '5px 10px',
+                  border: '0.5px solid #434343', cursor: 'pointer', fontSize: '12px', color: '#A5A5A5',
                   opacity: isBusy ? 0.5 : 1,
                 }}
               >
@@ -1044,7 +1057,7 @@ function ResearchPage() {
 
           {/* Word count + Check Coverage button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <span style={{ color: '#BBBBBB', fontSize: '14px' }}>
+            <span style={{ color: '#BBBBBB', fontSize: '12px' }}>
               {wordCount} words
             </span>
             <button
@@ -1052,7 +1065,7 @@ function ResearchPage() {
               disabled={wordCount === 0 || isBusy}
               style={{
                 backgroundColor: '#FFFFFF', color: '#000000', borderRadius: '5px',
-                padding: '8px 16px', border: 'none', fontSize: '14px',
+                padding: '5px 12px', border: 'none', fontSize: '12px',
                 cursor: 'pointer',
                 opacity: (wordCount === 0 || isBusy) ? 0.4 : 1,
               }}
@@ -1092,22 +1105,13 @@ function ResearchPage() {
         <div style={{ flex: 1, padding: '0 26px 40px', minWidth: 0 }}>
 
           {/* Tabs + action buttons */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0', margin: '0 -26px', padding: '0 26px' }}>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: '20px', flexShrink: 0 }}>
-              {/* Active tab — white underline overlaps the grey border */}
               <span style={{
-                fontSize: '13px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap',
-                paddingTop: '16px', paddingBottom: '16px', marginBottom: '-1px',
-                borderBottom: '2px solid #FFFFFF',
+                fontSize: '15px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap',
+                paddingTop: '16px', paddingBottom: '16px',
               }}>
                 Not in dictionary{results ? ` (${results.oovWords.length})` : ''}
-              </span>
-              {/* Inactive tab */}
-              <span style={{
-                fontSize: '13px', fontWeight: 400, color: '#7C7C7C', whiteSpace: 'nowrap',
-                paddingTop: '16px', paddingBottom: '16px', cursor: 'pointer',
-              }}>
-                In dictionary
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -1115,8 +1119,8 @@ function ResearchPage() {
                 onClick={handleSubmitFlagged}
                 disabled={status !== 'done' || !results || results.oovWords.length === 0}
                 style={{
-                  borderRadius: '5px', padding: '8px 16px', border: 'none',
-                  fontSize: '14px', cursor: 'pointer',
+                  borderRadius: '5px', padding: '5px 12px', border: 'none',
+                  fontSize: '12px', cursor: 'pointer',
                   backgroundColor: '#FFFFFF', color: '#000000',
                   opacity: (status !== 'done' || !results || results.oovWords.length === 0) ? 0.4 : 1,
                 }}
@@ -1127,10 +1131,10 @@ function ResearchPage() {
                 onClick={() => window.open('/shared', '_blank')}
                 disabled={status !== 'done' || !results || results.oovWords.length === 0}
                 style={{
-                  borderRadius: '5px', padding: '8px 16px',
+                  borderRadius: '5px', padding: '5px 12px',
                   border: '0.5px solid #434343',
                   backgroundColor: 'transparent',
-                  color: '#9C9C9C', fontSize: '14px', cursor: 'pointer',
+                  color: '#9C9C9C', fontSize: '12px', cursor: 'pointer',
                   opacity: (status !== 'done' || !results || results.oovWords.length === 0) ? 0.4 : 1,
                 }}
               >
@@ -1212,6 +1216,7 @@ function ResearchPage() {
                       onFlag={handleFlag}
                       onCancelFix={handleCancelFix}
                       addToast={addToast}
+                      sentences={results.wordSentences?.[word] ?? []}
                     />
                   ))}
                 </div>
@@ -1254,7 +1259,7 @@ function ResearchPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            width: '100%', maxWidth: '400px', borderRadius: '10px', padding: '32px',
+            width: '100%', maxWidth: '520px', borderRadius: '10px', padding: '32px',
             backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)',
             textAlign: 'center',
           }}>
@@ -1276,13 +1281,13 @@ function ResearchPage() {
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               <button
                 onClick={() => setShowRequestConfirm(false)}
-                style={{ padding: '8px 16px', borderRadius: '5px', fontSize: '13px', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                style={{ padding: '8px 24px', borderRadius: '5px', fontSize: '13px', whiteSpace: 'nowrap', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
               >
                 Back to Check Coverage
               </button>
               <button
                 onClick={() => { setShowRequestConfirm(false); navigate({ to: '/my-words' }) }}
-                style={{ padding: '8px 16px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, border: 'none', backgroundColor: '#ffffff', color: '#000000', cursor: 'pointer' }}
+                style={{ padding: '8px 24px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', border: 'none', backgroundColor: '#ffffff', color: '#000000', cursor: 'pointer' }}
               >
                 View My Words →
               </button>
@@ -1317,10 +1322,12 @@ function VoicePicker({
   voices,
   selected,
   onSelect,
+  label,
 }: {
   voices: VoiceEntry[]
   selected: string
   onSelect: (v: string) => void
+  label?: string
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -1409,15 +1416,16 @@ function VoicePicker({
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
-          padding: '8px 12px', borderRadius: '5px',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: '6px 10px', borderRadius: '5px',
           backgroundColor: '#161616', border: '0.5px solid #434343',
           color: '#FFFFFF', fontSize: '12px', cursor: 'pointer',
         }}
         title="Select preview voice"
       >
+        {label && <span style={{ color: '#A5A5A5', flexShrink: 0 }}>{label}</span>}
         <span style={{ fontWeight: 500, flexShrink: 0 }}>{selected}</span>
-        <span style={{ flex: 1, color: '#A5A5A5', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+        <span style={{ color: '#A5A5A5', fontSize: '11px', whiteSpace: 'nowrap' }}>
           {selectedEntry ? `${selectedEntry.dialect} · ${selectedEntry.gender} · ${selectedEntry.country}` : ''}
         </span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
@@ -1606,6 +1614,7 @@ function OovRow({
   onFlag,
   onCancelFix,
   addToast,
+  sentences,
 }: {
   word: string
   frequency: number
@@ -1621,6 +1630,7 @@ function OovRow({
   onFlag: (word: string) => void
   onCancelFix: (word: string) => void
   addToast: (msg: string) => void
+  sentences: string[]
 }) {
   const defaultKey = `${word}:default`
   const hasPhonetic = !!phonetic
@@ -1657,6 +1667,10 @@ function OovRow({
       prevPhoneticRef.current = phonetic?.rime
     }
   }, [phonetic?.rime])
+
+  // ── note state ───────────────────────────────────────────────────────────────
+  const [showNote, setShowNote] = useState(false)
+  const [noteText, setNoteText] = useState('')
 
   // ── recording state ─────────────────────────────────────────────────────────
   type RecState = 'idle' | 'recording' | 'analyzing' | 'done'
@@ -1736,13 +1750,14 @@ function OovRow({
     <div
       style={{
         borderTop: isFirst ? undefined : '0.5px solid #2A2A2A',
-        padding: '13px 26px',
+        padding: sentences.length > 0 ? '13px 26px 8px' : '13px 26px',
         display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
+        flexDirection: 'column',
+        gap: '0',
         minWidth: 0,
       }}
     >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
       {/* Word + frequency — fixed width so all buttons align */}
       <div style={{ width: '200px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
         <span
@@ -1906,26 +1921,101 @@ function OovRow({
           {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing' : 'Recorded'}
         </button>
 
-        {/* Pipe + notes icon */}
+        {/* Pipe + note icon */}
         <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2A2A2A', flexShrink: 0, margin: '0 10px' }} />
-        <button
-          onClick={() => navigator.clipboard.writeText(word)}
-          title="Copy word"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '22px', height: '22px', borderRadius: '5px',
-            border: 'none', backgroundColor: 'transparent',
-            color: '#7C7C7C', cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1"/>
-            <line x1="3.5" y1="4.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="3.5" y1="6.5" x2="7.5" y2="6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-          </svg>
-        </button>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowNote(v => !v)}
+            title="Add note"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '22px', height: '22px', borderRadius: '5px',
+              border: `1px solid ${showNote || noteText ? 'rgba(139,92,246,0.4)' : 'var(--border-subtle)'}`,
+              backgroundColor: showNote ? 'rgba(139,92,246,0.08)' : 'transparent',
+              color: showNote || noteText ? '#a78bfa' : '#7C7C7C', cursor: 'pointer',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1"/>
+              <line x1="3.5" y1="4.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="3.5" y1="6.5" x2="7.5" y2="6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+            </svg>
+          </button>
+
+          {showNote && (
+            <div style={{
+              position: 'absolute', right: 0, top: '30px', zIndex: 50,
+              width: '280px', borderRadius: '8px',
+              backgroundColor: 'var(--surface-1)',
+              border: '1px solid var(--border-default)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              padding: '12px',
+              display: 'flex', flexDirection: 'column', gap: '10px',
+            }}>
+              <textarea
+                autoFocus
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="Add a note about this word…"
+                rows={3}
+                style={{
+                  width: '100%', resize: 'none', outline: 'none',
+                  backgroundColor: 'var(--surface-2)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '5px', padding: '8px 10px',
+                  fontSize: '12px', color: 'var(--text-emphasis)', lineHeight: 1.5,
+                  boxSizing: 'border-box', fontFamily: 'inherit',
+                }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => setShowNote(false)}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
+                    fontWeight: 500, cursor: 'pointer',
+                    border: '1px solid var(--border-default)',
+                    backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                  }}
+                >Cancel</button>
+                <button
+                  onClick={() => setShowNote(false)}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
+                    fontWeight: 600, cursor: 'pointer',
+                    border: 'none', backgroundColor: '#ffffff', color: '#000000',
+                  }}
+                >Save</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+      </div>
+
+      {/* Sentence context */}
+      {sentences.length > 0 && (
+        <div style={{ paddingBottom: '10px', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {sentences.map((s, i) => {
+            const parts = s.split(new RegExp(`(${word})`, 'gi'))
+            const wordLower = word.toLowerCase()
+            return (
+              <div key={i} style={{ fontSize: '11px', color: '#5C5C5C', lineHeight: 1.5 }}>
+                {sentences.length > 1 && (
+                  <span style={{ color: '#3C3C3C', fontVariantNumeric: 'tabular-nums', marginRight: '6px' }}>
+                    [{i + 1}]
+                  </span>
+                )}
+                {parts.map((part, j) =>
+                  part.toLowerCase() === wordLower
+                    ? <span key={j} style={{ color: '#FFFFFF', fontWeight: 600 }}>{part}</span>
+                    : <span key={j}>{part}</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -59,7 +59,16 @@ export function parseWords(text: string): Map<string, number> {
 // ─── Rime APIs ────────────────────────────────────────────────────────────────
 
 const RIME_OOV_URL = '/api/oov'
-const RIME_TTS_URL = 'https://users.rime.ai/v1/rime-tts'
+const RIME_TTS_URL = '/api/rime-tts'
+
+function rimeProxyAuthHeaders(apiKey: string): Record<string, string> {
+  const bearer = `Bearer ${apiKey}`
+  return {
+    Authorization: bearer,
+    // Some hosts strip `Authorization`; edge proxy reads this fallback.
+    'X-Rime-Authorization': bearer,
+  }
+}
 
 /**
  * Returns the subset of `words` that are out-of-vocabulary for Rime.
@@ -68,7 +77,7 @@ export async function fetchOov(words: string[], apiKey: string): Promise<string[
   const res = await fetch(RIME_OOV_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      ...rimeProxyAuthHeaders(apiKey),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ text: words.join(' ') }),
@@ -86,7 +95,7 @@ export async function fetchWordAudio(word: string, apiKey: string, speaker = 'la
   const res = await fetch(RIME_TTS_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      ...rimeProxyAuthHeaders(apiKey),
       'Content-Type': 'application/json',
       Accept: 'audio/mp3',
     },
@@ -314,7 +323,7 @@ export async function fetchPhoneticAudio(text: string, apiKey: string, speaker =
   const res = await fetch(RIME_TTS_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      ...rimeProxyAuthHeaders(apiKey),
       'Content-Type': 'application/json',
       Accept: 'audio/mp3',
     },
