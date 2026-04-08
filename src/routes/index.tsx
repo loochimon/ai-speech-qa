@@ -1105,22 +1105,13 @@ function ResearchPage() {
         <div style={{ flex: 1, padding: '0 26px 40px', minWidth: 0 }}>
 
           {/* Tabs + action buttons */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0', margin: '0 -26px', padding: '0 26px' }}>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: '20px', flexShrink: 0 }}>
-              {/* Active tab — white underline overlaps the grey border */}
               <span style={{
-                fontSize: '13px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap',
-                paddingTop: '16px', paddingBottom: '16px', marginBottom: '-1px',
-                borderBottom: '2px solid #FFFFFF',
+                fontSize: '15px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap',
+                paddingTop: '16px', paddingBottom: '16px',
               }}>
                 Not in dictionary{results ? ` (${results.oovWords.length})` : ''}
-              </span>
-              {/* Inactive tab */}
-              <span style={{
-                fontSize: '13px', fontWeight: 400, color: '#7C7C7C', whiteSpace: 'nowrap',
-                paddingTop: '16px', paddingBottom: '16px', cursor: 'pointer',
-              }}>
-                In dictionary
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
