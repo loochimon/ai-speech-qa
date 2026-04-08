@@ -59,7 +59,7 @@ export function parseWords(text: string): Map<string, number> {
 // ─── Rime APIs ────────────────────────────────────────────────────────────────
 
 const RIME_OOV_URL = '/api/oov'
-const RIME_TTS_URL = 'https://users.rime.ai/v1/rime-tts'
+const RIME_TTS_URL = '/api/rime-tts'
 
 /**
  * Returns the subset of `words` that are out-of-vocabulary for Rime.

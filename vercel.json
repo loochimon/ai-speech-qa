@@ -3,6 +3,10 @@
   "rewrites": [
     { "source": "/api/oov", "destination": "https://users.rime.ai/oov" },
     {
+      "source": "/api/rime-tts",
+      "destination": "https://users.rime.ai/v1/rime-tts"
+    },
+    {
       "source": "/api/voices",
       "destination": "https://users.rime.ai/data/voices/voice_details.json"
     },
