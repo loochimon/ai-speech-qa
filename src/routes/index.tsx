@@ -1254,7 +1254,7 @@ function ResearchPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            width: '100%', maxWidth: '400px', borderRadius: '10px', padding: '32px',
+            width: '100%', maxWidth: '520px', borderRadius: '10px', padding: '32px',
             backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)',
             textAlign: 'center',
           }}>
@@ -1276,13 +1276,13 @@ function ResearchPage() {
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               <button
                 onClick={() => setShowRequestConfirm(false)}
-                style={{ padding: '8px 16px', borderRadius: '5px', fontSize: '13px', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                style={{ padding: '8px 24px', borderRadius: '5px', fontSize: '13px', whiteSpace: 'nowrap', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
               >
                 Back to Check Coverage
               </button>
               <button
                 onClick={() => { setShowRequestConfirm(false); navigate({ to: '/my-words' }) }}
-                style={{ padding: '8px 16px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, border: 'none', backgroundColor: '#ffffff', color: '#000000', cursor: 'pointer' }}
+                style={{ padding: '8px 24px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', border: 'none', backgroundColor: '#ffffff', color: '#000000', cursor: 'pointer' }}
               >
                 View My Words →
               </button>
@@ -1658,6 +1658,10 @@ function OovRow({
     }
   }, [phonetic?.rime])
 
+  // ── note state ───────────────────────────────────────────────────────────────
+  const [showNote, setShowNote] = useState(false)
+  const [noteText, setNoteText] = useState('')
+
   // ── recording state ─────────────────────────────────────────────────────────
   type RecState = 'idle' | 'recording' | 'analyzing' | 'done'
   const [recState, setRecState] = useState<RecState>('idle')
@@ -1906,25 +1910,75 @@ function OovRow({
           {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing' : 'Recorded'}
         </button>
 
-        {/* Pipe + notes icon */}
+        {/* Pipe + note icon */}
         <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2A2A2A', flexShrink: 0, margin: '0 10px' }} />
-        <button
-          onClick={() => navigator.clipboard.writeText(word)}
-          title="Copy word"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '22px', height: '22px', borderRadius: '5px',
-            border: 'none', backgroundColor: 'transparent',
-            color: '#7C7C7C', cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1"/>
-            <line x1="3.5" y1="4.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="3.5" y1="6.5" x2="7.5" y2="6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-          </svg>
-        </button>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowNote(v => !v)}
+            title="Add note"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '22px', height: '22px', borderRadius: '5px',
+              border: `1px solid ${showNote || noteText ? 'rgba(139,92,246,0.4)' : 'var(--border-subtle)'}`,
+              backgroundColor: showNote ? 'rgba(139,92,246,0.08)' : 'transparent',
+              color: showNote || noteText ? '#a78bfa' : '#7C7C7C', cursor: 'pointer',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1"/>
+              <line x1="3.5" y1="4.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="3.5" y1="6.5" x2="7.5" y2="6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+            </svg>
+          </button>
+
+          {showNote && (
+            <div style={{
+              position: 'absolute', right: 0, top: '30px', zIndex: 50,
+              width: '280px', borderRadius: '8px',
+              backgroundColor: 'var(--surface-1)',
+              border: '1px solid var(--border-default)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              padding: '12px',
+              display: 'flex', flexDirection: 'column', gap: '10px',
+            }}>
+              <textarea
+                autoFocus
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="Add a note about this word…"
+                rows={3}
+                style={{
+                  width: '100%', resize: 'none', outline: 'none',
+                  backgroundColor: 'var(--surface-2)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '5px', padding: '8px 10px',
+                  fontSize: '12px', color: 'var(--text-emphasis)', lineHeight: 1.5,
+                  boxSizing: 'border-box', fontFamily: 'inherit',
+                }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => setShowNote(false)}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
+                    fontWeight: 500, cursor: 'pointer',
+                    border: '1px solid var(--border-default)',
+                    backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                  }}
+                >Cancel</button>
+                <button
+                  onClick={() => setShowNote(false)}
+                  style={{
+                    flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
+                    fontWeight: 600, cursor: 'pointer',
+                    border: 'none', backgroundColor: '#ffffff', color: '#000000',
+                  }}
+                >Save</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
