@@ -1110,7 +1110,7 @@ function ResearchPage() {
         <div style={{ flex: 1, padding: '0 26px 40px', minWidth: 0 }}>
 
           {/* Tabs + action buttons */}
-          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0', marginRight: '-26px', paddingRight: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0', margin: '0 -26px', padding: '0 26px' }}>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: '20px', flexShrink: 0 }}>
               <span style={{
                 fontSize: '15px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap',
@@ -1182,7 +1182,7 @@ function ResearchPage() {
             <div>
 
               {/* Compact stats strip */}
-              <div style={{ display: 'flex', gap: '40px', padding: '16px 26px 16px 0', marginRight: '-26px', marginBottom: '4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
+              <div style={{ display: 'flex', gap: '40px', padding: '16px 26px', margin: '0 -26px 4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
                 <div>
                   <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Total words</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{results.totalTokens.toLocaleString()}</div>
