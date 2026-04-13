@@ -911,17 +911,17 @@ function ResearchPage() {
                 <button
                   onClick={() => setShowGeneratePopover(p => !p)}
                   disabled={isBusy}
+                  title="AI Generate"
                   style={{
-                    backgroundColor: '#161616', borderRadius: '5px', padding: '5px 10px',
-                    border: '0.5px solid #434343', display: 'flex', alignItems: 'center', gap: '6px',
-                    cursor: 'pointer', fontSize: '12px', color: '#A5A5A5',
+                    backgroundColor: '#161616', borderRadius: '5px', padding: '5px 7px',
+                    border: '0.5px solid #434343', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#A5A5A5',
                     opacity: isBusy ? 0.5 : 1,
                   }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
                     <path d="M6 0l1.8 4.2L12 6l-4.2 1.8L6 12l-1.8-4.2L0 6l4.2-1.8z" />
                   </svg>
-                  AI Generate
                 </button>
                 {showGeneratePopover && (
                   <div style={{
@@ -976,13 +976,18 @@ function ResearchPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isBusy}
+                title="Upload file"
                 style={{
-                  backgroundColor: '#161616', borderRadius: '5px', padding: '5px 10px',
-                  border: '0.5px solid #434343', cursor: 'pointer', fontSize: '12px', color: '#A5A5A5',
+                  backgroundColor: '#161616', borderRadius: '5px', padding: '5px 7px',
+                  border: '0.5px solid #434343', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: '#A5A5A5',
                   opacity: isBusy ? 0.5 : 1,
                 }}
               >
-                ↑ Upload
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 10V3M4 6l3-3 3 3"/>
+                  <path d="M2 12h10"/>
+                </svg>
               </button>
               <input ref={fileInputRef} type="file" accept=".txt,.csv,.pdf,.docx" style={{ display: 'none' }} onChange={handleFileInput} />
             </div>
