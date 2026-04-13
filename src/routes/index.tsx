@@ -901,7 +901,7 @@ function ResearchPage() {
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 240px)', alignItems: 'stretch' }}>
 
         {/* ── Left panel ── */}
-        <div style={{ width: '398px', flexShrink: 0, padding: '16px' }}>
+        <div style={{ width: '398px', flexShrink: 0, padding: '16px 26px' }}>
 
           {/* Script label + AI Generate + Upload */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
@@ -1086,7 +1086,7 @@ function ResearchPage() {
               height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'ns-resize', userSelect: 'none', flexShrink: 0,
               borderTop: '0.5px solid #2A2A2A', borderBottom: '0.5px solid #2A2A2A',
-              margin: '0 -16px',
+              margin: '0 -26px',
             }}
           >
             <div style={{ width: '48px', height: '3px', borderRadius: '99px', backgroundColor: '#383838' }} />
