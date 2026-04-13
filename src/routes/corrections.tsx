@@ -270,6 +270,8 @@ function diffStrings(a: string, b: string): Array<{ char: string; type: 'same' |
 
 // ─── CorrectionsPage ──────────────────────────────────────────────────────────
 
+interface Annotator { name: string; initials: string; color: string; count: number }
+
 function CorrectionsPage() {
   const [allWords, setAllWords] = useState<AnnotationWord[]>(MOCK_WORDS)
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -286,7 +288,24 @@ function CorrectionsPage() {
   const [newCategoryInput, setNewCategoryInput] = useState('')
   const allCategories = [...CATEGORIES, ...customCategories]
 
-  // Feature 4: Rejected tab in left panel
+  // Feature 3: Annotator progress panel
+  const [annotators, setAnnotators] = useState<Annotator[]>([
+    { name: 'Sofia Chen',  initials: 'SC', color: '#a78bfa', count: 14 },
+    { name: 'Marcus Webb', initials: 'MW', color: '#34d399', count: 9  },
+    { name: 'Priya Nair',  initials: 'PN', color: '#fbbf24', count: 3  },
+  ])
+  const [showAddAnnotator, setShowAddAnnotator] = useState(false)
+  const [newAnnotatorName, setNewAnnotatorName] = useState('')
+
+  const handleAddAnnotator = () => {
+    const trimmed = newAnnotatorName.trim()
+    if (!trimmed) return
+    const initials = trimmed.split(' ').map((p: string) => p[0]?.toUpperCase() ?? '').join('').slice(0, 2)
+    const colors = ['#00E5CB', '#a78bfa', '#34d399', '#fbbf24', '#f87171']
+    setAnnotators(prev => [...prev, { name: trimmed, initials, color: colors[prev.length % colors.length], count: 0 }])
+    setNewAnnotatorName('')
+    setShowAddAnnotator(false)
+  }
 
   const handleAddCategory = () => {
     const trimmed = newCategoryInput.trim()
@@ -564,6 +583,43 @@ function CorrectionsPage() {
             </>
           )
         })()}
+
+        {/* Annotator progress panel */}
+        <div style={{ flexShrink: 0, borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ padding: '6px 14px 4px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, backgroundColor: 'var(--surface-1)', zIndex: 1 }}>
+            <span>Annotators</span>
+            <button
+              onClick={() => setShowAddAnnotator(v => !v)}
+              title="Add annotator"
+              style={{ width: '18px', height: '18px', borderRadius: '3px', border: '1px solid var(--border-default)', backgroundColor: showAddAnnotator ? 'var(--surface-3)' : 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', lineHeight: 1, flexShrink: 0 }}
+            >+</button>
+          </div>
+          <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+            {showAddAnnotator && (
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <input
+                  autoFocus
+                  value={newAnnotatorName}
+                  onChange={e => setNewAnnotatorName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddAnnotator(); if (e.key === 'Escape') { setShowAddAnnotator(false); setNewAnnotatorName('') } }}
+                  placeholder="Full name…"
+                  style={{ flex: 1, fontSize: '11px', padding: '4px 6px', borderRadius: '4px', border: '1px solid rgba(45,212,191,0.4)', backgroundColor: 'var(--surface-2)', color: 'var(--text-emphasis)', outline: 'none' }}
+                />
+                <button onClick={handleAddAnnotator} style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Add</button>
+                <button onClick={() => { setShowAddAnnotator(false); setNewAnnotatorName('') }} style={{ width: '22px', height: '22px', borderRadius: '4px', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            )}
+            {annotators.map(a => (
+              <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: a.color + '22', border: `1px solid ${a.color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: '8px', fontWeight: 700, color: a.color, letterSpacing: '0.02em' }}>{a.initials}</span>
+                </div>
+                <span style={{ flex: 1, fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
+                <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--text-muted)', flexShrink: 0 }}>{a.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Keyboard hint */}
         <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>

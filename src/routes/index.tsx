@@ -898,10 +898,10 @@ function ResearchPage() {
       </div>
 
       {/* ── Main content: left panel + divider + right panel ── */}
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 240px)' }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 240px)', alignItems: 'stretch' }}>
 
         {/* ── Left panel ── */}
-        <div style={{ width: '398px', flexShrink: 0, padding: '18px 26px 40px' }}>
+        <div style={{ width: '398px', flexShrink: 0, padding: '16px' }}>
 
           {/* Script label + AI Generate + Upload */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
@@ -2324,7 +2324,7 @@ function HistoryItem({ entry, onRestore }: { entry: HistoryEntry; onRestore: (e:
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{timeAgo(entry.timestamp)}</span>
         </div>
       </div>
-      <div className="rounded-lg px-3 py-2 mb-2 font-mono text-xs leading-relaxed" style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-muted)' }}>
+      <div className="px-3 py-2 mb-2 font-mono text-xs leading-relaxed" style={{ borderRadius: '2px', backgroundColor: 'var(--surface-2)', color: 'var(--text-muted)' }}>
         {textExpanded
           ? <pre className="whitespace-pre-wrap break-words" style={{ fontFamily: 'inherit', margin: 0 }}>{entry.text}</pre>
           : <span>{preview}{isTruncated ? '…' : ''}</span>}
