@@ -128,37 +128,33 @@ function MyWordsPage() {
       </div>
 
       {/* ── filter bar ── */}
-      <div className="flex items-center gap-3 px-8 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 26px', borderBottom: '0.5px solid #383838' }}>
         {/* Search */}
-        <div
-          className="flex items-center gap-2 flex-1 max-w-xs px-3 py-2"
-          style={{ borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-1)' }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-            <circle cx="5" cy="5" r="4" />
-            <line x1="8.5" y1="8.5" x2="11" y2="11" />
+        <div style={{ width: '200px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
+            <circle cx="6" cy="6" r="4.5" stroke="#A5A5A5" strokeWidth="1.2" />
+            <path d="M9.5 9.5L12.5 12.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search"
-            className="bg-transparent outline-none text-sm flex-1"
-            style={{ color: 'var(--text-emphasis)' }}
+            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', color: '#FFFFFF', fontSize: '12px' }}
           />
         </div>
 
         {/* Project filter */}
-        <div
-          className="flex items-center gap-2 px-3 py-2"
-          style={{ borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-1)' }}
-        >
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Project</span>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px', fontSize: '12px', color: '#FFFFFF' }}>
+            <span style={{ color: '#A5A5A5', flexShrink: 0 }}>Project</span>
+            <span style={{ flexShrink: 0 }}>{projectFilter}</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </div>
           <select
             value={projectFilter}
             onChange={e => setProjectFilter(e.target.value)}
-            className="bg-transparent outline-none text-sm"
-            style={{ color: 'var(--text-secondary)', border: 'none' }}
+            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
           >
             <option value="All Projects">All Projects</option>
             <option value="Medication IVR">Medication IVR</option>
@@ -170,16 +166,16 @@ function MyWordsPage() {
         </div>
 
         {/* Status filter */}
-        <div
-          className="flex items-center gap-2 px-3 py-2"
-          style={{ borderRadius: '5px', border: '1px solid var(--border-default)', backgroundColor: 'var(--surface-1)' }}
-        >
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Status</span>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px', fontSize: '12px', color: '#FFFFFF' }}>
+            <span style={{ color: '#A5A5A5', flexShrink: 0 }}>Status</span>
+            <span style={{ flexShrink: 0 }}>{statusFilter === 'All' ? `All (${words.length})` : statusFilter}</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </div>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="bg-transparent outline-none text-sm"
-            style={{ color: 'var(--text-secondary)', border: 'none' }}
+            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%' }}
           >
             <option value="All">All ({words.length})</option>
             <option value="Requested">Requested ({counts.requested})</option>
