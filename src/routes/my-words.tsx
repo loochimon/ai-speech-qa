@@ -90,39 +90,33 @@ function MyWordsPage() {
       </div>
 
       {/* ── stats bar ── */}
-      <div className="flex items-center px-8 py-5 gap-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'flex', gap: '40px', padding: '16px 26px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
 
-        {/* Updated — only colored stat */}
-        <div className="flex flex-col gap-1 pr-8">
-          <div className="flex items-baseline gap-1.5">
-            <span style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1, color: '#34d399', fontVariantNumeric: 'tabular-nums' }}>{counts.updated}</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>/ {counts.total}</span>
+        {/* Updated */}
+        <div>
+          <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Updated</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#34d399', fontVariantNumeric: 'tabular-nums' }}>
+            {counts.updated}
+            <span style={{ fontSize: '12px', fontWeight: 400, color: '#7C7C7C', marginLeft: '4px' }}>/ {counts.total}</span>
           </div>
-          <span style={{ fontSize: '10px', color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Updated</span>
         </div>
-
-        <StatDivider />
 
         {/* In Review */}
-        <div className="flex flex-col gap-1 px-8">
-          <span style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1, color: 'var(--text-emphasis)', fontVariantNumeric: 'tabular-nums' }}>{counts.inReview}</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>In Review</span>
+        <div>
+          <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>In Review</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{counts.inReview}</div>
         </div>
-
-        <StatDivider />
 
         {/* Requested */}
-        <div className="flex flex-col gap-1 px-8">
-          <span style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1, color: 'var(--text-emphasis)', fontVariantNumeric: 'tabular-nums' }}>{counts.requested}</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Requested</span>
+        <div>
+          <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Requested</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{counts.requested}</div>
         </div>
 
-        <StatDivider />
-
         {/* Rejected */}
-        <div className="flex flex-col gap-1 px-8">
-          <span style={{ fontSize: '28px', fontWeight: 700, lineHeight: 1, color: 'var(--text-emphasis)', fontVariantNumeric: 'tabular-nums' }}>{counts.rejected}</span>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Rejected</span>
+        <div>
+          <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Rejected</div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{counts.rejected}</div>
         </div>
 
       </div>
