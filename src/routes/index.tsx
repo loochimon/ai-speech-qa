@@ -2039,27 +2039,53 @@ function OovRow({
             border: '0.5px solid #2E2E2E',
           }}
         >
-          {/* Rime text input */}
-          <input
-            autoFocus
-            value={activeRimeDisplay}
-            onChange={e => setEditedRime(e.target.value)}
-            spellCheck={false}
-            placeholder={`{phonetic} or spell(word)`}
-            title="Rime phonetic encoding — use {} for phonemes or spell() for spelling"
-            style={{
-              flex: 1,
-              fontSize: '12px',
-              fontFamily: 'ui-monospace, monospace',
-              backgroundColor: '#1A1A1A',
-              border: '0.5px solid #383838',
-              borderRadius: '5px',
-              color: '#FFFFFF',
-              padding: '6px 10px',
-              outline: 'none',
-              minWidth: 0,
-            }}
-          />
+          {/* Rime text input with play button inside */}
+          <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+            <input
+              autoFocus
+              value={activeRimeDisplay}
+              onChange={e => setEditedRime(e.target.value)}
+              spellCheck={false}
+              placeholder="{phonetic} or spell(word)"
+              title="Rime phonetic encoding — use {} for phonemes or spell() for spelling"
+              style={{
+                width: '100%',
+                fontSize: '12px',
+                fontFamily: 'ui-monospace, monospace',
+                backgroundColor: '#1A1A1A',
+                border: '0.5px solid #383838',
+                borderRadius: '5px',
+                color: '#FFFFFF',
+                padding: '6px 38px 6px 10px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {/* Round play button — inside the input, right side */}
+            <button
+              onClick={() => {
+                if (!hasPhonetic && !editedRime) return
+                onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
+              }}
+              disabled={!hasPhonetic && !editedRime}
+              title={`Preview: ${activeRimeDisplay}`}
+              style={{
+                position: 'absolute', right: '7px', top: '50%', transform: 'translateY(-50%)',
+                width: '22px', height: '22px', borderRadius: '50%',
+                border: '0.5px solid #383838', backgroundColor: '#161616',
+                color: loadingAudio === suggestedKey || playingAudio === suggestedKey ? '#FFFFFF' : '#7C7C7C',
+                cursor: !hasPhonetic && !editedRime ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: !hasPhonetic && !editedRime ? 0.35 : 1,
+                flexShrink: 0,
+              }}
+            >
+              {loadingAudio === suggestedKey
+                ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
+                : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
+              }
+            </button>
+          </div>
 
           {/* Reset to original */}
           {isEdited && (
@@ -2074,29 +2100,6 @@ function OovRow({
               </svg>
             </button>
           )}
-
-          {/* Play button for current phonetic input */}
-          <button
-            onClick={() => {
-              if (!hasPhonetic && !editedRime) return
-              onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
-            }}
-            disabled={!hasPhonetic && !editedRime}
-            title={`Preview: ${activeRimeDisplay}`}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '26px', height: '26px', borderRadius: '5px',
-              border: '0.5px solid #383838', backgroundColor: 'transparent',
-              color: loadingAudio === suggestedKey || playingAudio === suggestedKey ? '#FFFFFF' : '#9C9C9C',
-              cursor: !hasPhonetic && !editedRime ? 'not-allowed' : 'pointer', flexShrink: 0,
-              opacity: !hasPhonetic && !editedRime ? 0.4 : 1,
-            }}
-          >
-            {loadingAudio === suggestedKey
-              ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
-              : <svg width="8" height="9" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
-            }
-          </button>
 
           {/* Play back recording (shown when recording captured) */}
           {recState === 'done' && recordedUrl && (
