@@ -2076,13 +2076,14 @@ function OovRow({
               title="Rime phonetic encoding — use {} for phonemes or spell() for spelling"
               style={{
                 width: '100%',
+                height: '32px',
                 fontSize: '12px',
                 fontFamily: 'ui-monospace, monospace',
                 backgroundColor: '#1A1A1A',
                 border: '0.5px solid #383838',
                 borderRadius: '5px',
                 color: '#FFFFFF',
-                padding: '6px 38px 6px 10px',
+                padding: '0 38px 0 10px',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -2152,12 +2153,12 @@ function OovRow({
             title={micTitle}
             style={{
               display: 'flex', alignItems: 'center', gap: '5px',
-              fontSize: '11px', padding: '4px 9px',
+              height: '32px', fontSize: '11px', padding: '0 10px',
               borderRadius: '5px',
               border: `0.5px solid ${recState === 'idle' ? '#383838' : recState === 'recording' ? 'rgba(239,68,68,0.5)' : '#7C7C7C'}`,
               backgroundColor: recState === 'recording' ? 'rgba(239,68,68,0.08)' : 'transparent',
               color: recState === 'idle' ? '#7C7C7C' : recState === 'recording' ? '#ef4444' : '#CFCFCF',
-              cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+              cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', boxSizing: 'border-box',
             }}
           >
             {recState === 'analyzing' ? (
@@ -2191,10 +2192,11 @@ function OovRow({
               }}
               title="Save this pronunciation"
               style={{
-                fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
+                height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px',
                 border: '0.5px solid rgba(52,211,153,0.45)',
                 backgroundColor: 'rgba(52,211,153,0.1)',
                 color: '#34d399', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 600,
+                boxSizing: 'border-box',
               }}
             >
               Save
@@ -2206,10 +2208,11 @@ function OovRow({
               }}
               title="Clear saved pronunciation"
               style={{
-                fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
+                height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px',
                 border: '0.5px solid rgba(239,68,68,0.3)',
                 backgroundColor: 'rgba(239,68,68,0.07)',
                 color: '#f87171', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                boxSizing: 'border-box',
               }}
             >
               Clear
