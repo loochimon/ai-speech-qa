@@ -1163,6 +1163,8 @@ function ResearchPage() {
               expanded={pronunciationPanelExpanded}
               onToggleExpanded={() => setPronunciationPanelExpanded(e => !e)}
               onClear={handleClearCustomPronunciation}
+              onSave={handleSaveCustomPronunciation}
+              addToast={addToast}
             />
           </div>
         </div>
@@ -2626,13 +2628,56 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
 
 // ─── PronunciationPanel ───────────────────────────────────────────────────────
 
-function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear }: {
+function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear, onSave, addToast }: {
   pronunciations: Record<string, string>
   expanded: boolean
   onToggleExpanded: () => void
   onClear: (word: string) => void
+  onSave: (word: string, rime: string) => void
+  addToast: (msg: string) => void
 }) {
   const entries = Object.entries(pronunciations)
+
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addWord, setAddWord] = useState('')
+  const [addRime, setAddRime] = useState('')
+  const [addLoading, setAddLoading] = useState(false)
+  const wordInputRef = useRef<HTMLInputElement>(null)
+
+  const handleLookup = async () => {
+    const w = addWord.trim().toLowerCase()
+    if (!w) return
+    setAddLoading(true)
+    try {
+      const map = await fetchWordPhonetics([w], OPENAI_API_KEY)
+      const result = map[w] ?? map[Object.keys(map)[0]]
+      if (result) {
+        setAddRime(`{${result.rime}}`)
+      } else {
+        addToast('No phonetic found — enter Rime manually')
+      }
+    } catch {
+      addToast('Lookup failed — enter Rime manually')
+    }
+    setAddLoading(false)
+  }
+
+  const handleSave = () => {
+    const w = addWord.trim().toLowerCase()
+    const bare = addRime.trim().replace(/^\{|\}$/g, '')
+    if (!w || !bare) return
+    onSave(w, bare)
+    setAddWord('')
+    setAddRime('')
+    setShowAddForm(false)
+    addToast(`Saved custom pronunciation for "${w}"`)
+  }
+
+  const handleClose = () => {
+    setShowAddForm(false)
+    setAddWord('')
+    setAddRime('')
+  }
 
   return (
     <div>
@@ -2641,14 +2686,121 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
           Custom Pronunciations
           {entries.length > 0 && <span style={{ marginLeft: '5px', fontSize: '11px', color: '#7C7C7C', fontWeight: 400 }}>({entries.length})</span>}
         </span>
-        {entries.length > 0 && (
-          <button onClick={onToggleExpanded} style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
-            {expanded ? 'Collapse' : 'Expand'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={() => { setShowAddForm(v => !v); setTimeout(() => wordInputRef.current?.focus(), 50) }}
+            title="Add a custom pronunciation for any word"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              fontSize: '11px', padding: '2px 7px', borderRadius: '4px',
+              border: showAddForm ? '0.5px solid #5C5C5C' : '0.5px solid #383838',
+              backgroundColor: showAddForm ? 'rgba(255,255,255,0.04)' : 'transparent',
+              color: showAddForm ? '#CFCFCF' : '#7C7C7C', cursor: 'pointer',
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <line x1="4" y1="1" x2="4" y2="7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              <line x1="1" y1="4" x2="7" y2="4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            Add word
           </button>
-        )}
+          {entries.length > 0 && (
+            <button onClick={onToggleExpanded} style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {entries.length === 0 ? (
+      {/* Add word form */}
+      {showAddForm && (
+        <div style={{
+          marginBottom: '10px', padding: '10px 12px', borderRadius: '7px',
+          backgroundColor: '#111111', border: '0.5px solid #2E2E2E',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+        }}>
+          {/* Word input */}
+          <input
+            ref={wordInputRef}
+            value={addWord}
+            onChange={e => setAddWord(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && addWord.trim()) handleLookup() }}
+            placeholder="Word (e.g. anna)"
+            spellCheck={false}
+            style={{
+              width: '100%', height: '30px', fontSize: '12px',
+              fontFamily: 'ui-monospace, monospace',
+              backgroundColor: '#1A1A1A', border: '0.5px solid #383838',
+              borderRadius: '5px', color: '#FFFFFF', padding: '0 10px',
+              outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+          {/* Rime input row */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input
+                value={addRime}
+                onChange={e => setAddRime(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSave() }}
+                placeholder="{phonetic}"
+                spellCheck={false}
+                style={{
+                  width: '100%', height: '30px', fontSize: '12px',
+                  fontFamily: 'ui-monospace, monospace',
+                  backgroundColor: '#1A1A1A', border: '0.5px solid #383838',
+                  borderRadius: '5px', color: '#FFFFFF', padding: '0 34px 0 10px',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              {/* Lookup button inside Rime input */}
+              <button
+                onClick={handleLookup}
+                disabled={!addWord.trim() || addLoading}
+                title="Look up Rime phonetic for this word"
+                style={{
+                  position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                  width: '20px', height: '20px', borderRadius: '50%',
+                  border: '0.5px solid #383838', backgroundColor: '#161616',
+                  color: addLoading ? '#5C5C5C' : '#7C7C7C',
+                  cursor: !addWord.trim() || addLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: !addWord.trim() ? 0.35 : 1, flexShrink: 0,
+                }}
+              >
+                {addLoading
+                  ? <span style={{ width: '6px', height: '6px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
+                  : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
+                }
+              </button>
+            </div>
+            {/* Save */}
+            <button
+              onClick={handleSave}
+              disabled={!addWord.trim() || !addRime.trim()}
+              style={{
+                height: '30px', padding: '0 10px', borderRadius: '5px', fontSize: '11px', fontWeight: 600,
+                border: '0.5px solid rgba(52,211,153,0.45)', backgroundColor: 'rgba(52,211,153,0.1)',
+                color: '#34d399', cursor: !addWord.trim() || !addRime.trim() ? 'not-allowed' : 'pointer',
+                opacity: !addWord.trim() || !addRime.trim() ? 0.4 : 1, flexShrink: 0,
+                boxSizing: 'border-box',
+              }}
+            >Save</button>
+            {/* Close */}
+            <button
+              onClick={handleClose}
+              style={{
+                height: '30px', width: '30px', borderRadius: '5px', fontSize: '16px',
+                border: 'none', backgroundColor: 'transparent',
+                color: '#5C5C5C', cursor: 'pointer', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxSizing: 'border-box',
+              }}
+            >×</button>
+          </div>
+        </div>
+      )}
+
+      {entries.length === 0 && !showAddForm ? (
         <p style={{ fontSize: '11px', color: '#7C7C7C', margin: 0 }}>
           Edit a word's Rime phonetic and press Save to build your custom map.
         </p>
