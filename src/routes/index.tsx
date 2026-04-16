@@ -1250,7 +1250,7 @@ function ResearchPage() {
             </div>
           )}
 
-          {status === 'done' && results && !isBusy && !vocabView && (
+          {status === 'done' && results && !isBusy && (
             <div>
               {/* Compact stats strip */}
               <div style={{ display: 'flex', gap: '40px', padding: '16px 26px', margin: '0 -26px 4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
@@ -1306,31 +1306,52 @@ function ResearchPage() {
                   <p className="mt-1 text-sm" style={{ color: '#7C7C7C' }}>Every word in your input is in Rime's dictionary.</p>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Vocab words view */}
-          {vocabView && (
-            <VocabWordsTable
-              oovWords={results?.oovWords ?? []}
-              manualWords={manualWords}
-              phonetics={phonetics}
-              phoneticsLoading={phoneticsLoading}
-              customPronunciations={customPronunciations}
-              loadingAudio={loadingAudio}
-              playingAudio={playingAudio}
-              onPlay={handlePlay}
-              selectedVoice={selectedVoice}
-              submittedWords={submittedWords}
-              flaggedWords={flaggedWords}
-              onFlag={handleFlag}
-              onCancelFix={handleCancelFix}
-              addToast={addToast}
-              wordSentences={results?.wordSentences ?? {}}
-              onSaveCustomPronunciation={handleSaveCustomPronunciation}
-              onClearCustomPronunciation={handleClearCustomPronunciation}
-              onBack={() => setVocabView(false)}
-            />
+              {/* Custom Pronunciations section — appended below when "View all" is clicked */}
+              {vocabView && (() => {
+                const oovSet = new Set(results.oovWords.map(w => w.word))
+                const manualOnly = manualWords.filter(w => !oovSet.has(w))
+                if (manualOnly.length === 0) return null
+                return (
+                  <div>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 26px', margin: '0 -26px',
+                      borderTop: '0.5px solid #2A2A2A', borderBottom: '0.5px solid #2A2A2A',
+                      backgroundColor: '#111111',
+                    }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#CFCFCF' }}>Custom Pronunciations</span>
+                      <span style={{ fontSize: '11px', color: '#5C5C5C' }}>{manualOnly.length}</span>
+                    </div>
+                    <div style={{ margin: '0 -26px' }}>
+                      {manualOnly.map((word, i) => (
+                        <OovRow
+                          key={word}
+                          word={word}
+                          frequency={0}
+                          isFirst={i === 0}
+                          phonetic={phonetics[word]}
+                          phoneticsLoading={phoneticsLoading && !phonetics[word]}
+                          loadingAudio={loadingAudio}
+                          playingAudio={playingAudio}
+                          onPlay={handlePlay}
+                          selectedVoice={selectedVoice}
+                          isSubmitted={submittedWords.has(word)}
+                          isFlagged={flaggedWords.has(word)}
+                          onFlag={handleFlag}
+                          onCancelFix={handleCancelFix}
+                          addToast={addToast}
+                          sentences={[]}
+                          customPronunciation={customPronunciations[word]}
+                          onSaveCustomPronunciation={handleSaveCustomPronunciation}
+                          onClearCustomPronunciation={handleClearCustomPronunciation}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
           )}
 
           {status === 'idle' && !isBusy && (
