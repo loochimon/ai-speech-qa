@@ -2986,24 +2986,28 @@ function VocabWordsTable({
 }) {
   const oovSet = new Set(oovWords.map(w => w.word))
   const manualOnly = manualWords.filter(w => !oovSet.has(w))
-  const totalCount = oovWords.length + manualOnly.length
+
+  const sectionHeader = (label: string, count: number) => (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '10px 26px', margin: '0 -26px',
+      borderTop: '0.5px solid #2A2A2A', borderBottom: '0.5px solid #2A2A2A',
+      backgroundColor: '#111111',
+    }}>
+      <span style={{ fontSize: '12px', fontWeight: 600, color: '#CFCFCF' }}>{label}</span>
+      <span style={{ fontSize: '11px', color: '#5C5C5C' }}>{count}</span>
+    </div>
+  )
 
   return (
     <div>
-      {/* Header bar */}
+      {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 26px', margin: '0 -26px',
         borderBottom: '0.5px solid #383838', backgroundColor: '#141414',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>Vocab Words</span>
-          <span style={{ fontSize: '11px', color: '#7C7C7C' }}>
-            {totalCount} total
-            {oovWords.length > 0 && <span> · <span style={{ color: '#fbbf24' }}>{oovWords.length} OOV</span></span>}
-            {manualOnly.length > 0 && <span> · <span style={{ color: '#34d399' }}>{manualOnly.length} added</span></span>}
-          </span>
-        </div>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>Vocab Words</span>
         <button
           onClick={onBack}
           style={{
@@ -3020,60 +3024,73 @@ function VocabWordsTable({
         </button>
       </div>
 
-      {totalCount === 0 ? (
+      {/* Section 1: Custom pronunciations (manually added) */}
+      {manualOnly.length > 0 && (
+        <>
+          {sectionHeader('Custom Pronunciations', manualOnly.length)}
+          <div style={{ margin: '0 -26px' }}>
+            {manualOnly.map((word, i) => (
+              <OovRow
+                key={word}
+                word={word}
+                frequency={0}
+                isFirst={i === 0}
+                phonetic={phonetics[word]}
+                phoneticsLoading={phoneticsLoading && !phonetics[word]}
+                loadingAudio={loadingAudio}
+                playingAudio={playingAudio}
+                onPlay={onPlay}
+                selectedVoice={selectedVoice}
+                isSubmitted={submittedWords.has(word)}
+                isFlagged={flaggedWords.has(word)}
+                onFlag={onFlag}
+                onCancelFix={onCancelFix}
+                addToast={addToast}
+                sentences={wordSentences[word] ?? []}
+                customPronunciation={customPronunciations[word]}
+                onSaveCustomPronunciation={onSaveCustomPronunciation}
+                onClearCustomPronunciation={onClearCustomPronunciation}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Section 2: Words not in dictionary */}
+      {oovWords.length > 0 && (
+        <>
+          {sectionHeader('Words Not in Dictionary', oovWords.length)}
+          <div style={{ margin: '0 -26px' }}>
+            {oovWords.map(({ word, frequency }, i) => (
+              <OovRow
+                key={word}
+                word={word}
+                frequency={frequency}
+                isFirst={i === 0}
+                phonetic={phonetics[word]}
+                phoneticsLoading={phoneticsLoading && !phonetics[word]}
+                loadingAudio={loadingAudio}
+                playingAudio={playingAudio}
+                onPlay={onPlay}
+                selectedVoice={selectedVoice}
+                isSubmitted={submittedWords.has(word)}
+                isFlagged={flaggedWords.has(word)}
+                onFlag={onFlag}
+                onCancelFix={onCancelFix}
+                addToast={addToast}
+                sentences={wordSentences[word] ?? []}
+                customPronunciation={customPronunciations[word]}
+                onSaveCustomPronunciation={onSaveCustomPronunciation}
+                onClearCustomPronunciation={onClearCustomPronunciation}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {manualOnly.length === 0 && oovWords.length === 0 && (
         <div style={{ padding: '48px 26px', textAlign: 'center' }}>
           <p style={{ fontSize: '13px', color: '#7C7C7C' }}>No vocab words yet — add words via the Custom Pronunciations panel.</p>
-        </div>
-      ) : (
-        <div style={{ margin: '0 -26px' }}>
-          {oovWords.map(({ word, frequency }, i) => (
-            <OovRow
-              key={word}
-              word={word}
-              frequency={frequency}
-              isFirst={i === 0}
-              tag="OOV"
-              phonetic={phonetics[word]}
-              phoneticsLoading={phoneticsLoading && !phonetics[word]}
-              loadingAudio={loadingAudio}
-              playingAudio={playingAudio}
-              onPlay={onPlay}
-              selectedVoice={selectedVoice}
-              isSubmitted={submittedWords.has(word)}
-              isFlagged={flaggedWords.has(word)}
-              onFlag={onFlag}
-              onCancelFix={onCancelFix}
-              addToast={addToast}
-              sentences={wordSentences[word] ?? []}
-              customPronunciation={customPronunciations[word]}
-              onSaveCustomPronunciation={onSaveCustomPronunciation}
-              onClearCustomPronunciation={onClearCustomPronunciation}
-            />
-          ))}
-          {manualOnly.map((word, i) => (
-            <OovRow
-              key={word}
-              word={word}
-              frequency={0}
-              isFirst={oovWords.length === 0 && i === 0}
-              tag="added"
-              phonetic={phonetics[word]}
-              phoneticsLoading={phoneticsLoading && !phonetics[word]}
-              loadingAudio={loadingAudio}
-              playingAudio={playingAudio}
-              onPlay={onPlay}
-              selectedVoice={selectedVoice}
-              isSubmitted={submittedWords.has(word)}
-              isFlagged={flaggedWords.has(word)}
-              onFlag={onFlag}
-              onCancelFix={onCancelFix}
-              addToast={addToast}
-              sentences={wordSentences[word] ?? []}
-              customPronunciation={customPronunciations[word]}
-              onSaveCustomPronunciation={onSaveCustomPronunciation}
-              onClearCustomPronunciation={onClearCustomPronunciation}
-            />
-          ))}
         </div>
       )}
     </div>
