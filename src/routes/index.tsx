@@ -1974,7 +1974,7 @@ function OovRow({
                 <line x1="4.5" y1="1" x2="4.5" y2="8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
                 <line x1="1" y1="4.5" x2="8" y2="4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
               </svg>
-              Add pronunciation
+              Custom pronunciation
             </>
           )}
         </button>
