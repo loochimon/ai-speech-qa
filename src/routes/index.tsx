@@ -1129,14 +1129,40 @@ function ResearchPage() {
             />
           </div>
 
+          {/* Separator */}
+          <div style={{ margin: '20px -26px 0', borderTop: '0.5px solid #2A2A2A' }} />
+
+          {/* Expanded JSON drawer — sits between the two sections */}
+          {pronunciationPanelExpanded && Object.keys(customPronunciations).length > 0 && (() => {
+            const entries = Object.entries(customPronunciations)
+            const json = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
+            return (
+              <div style={{ margin: '0 -26px', padding: '14px 26px', backgroundColor: '#0E0E0E', borderBottom: '0.5px solid #2A2A2A' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '10px', color: '#7C7C7C', fontFamily: 'ui-monospace, monospace' }}>rime_custom_pronunciations</span>
+                  <button
+                    onClick={() => {
+                      const json2 = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
+                      navigator.clipboard.writeText(json2).catch(() => {})
+                      addToast('Copied to clipboard')
+                    }}
+                    style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid #383838', backgroundColor: '#1A1A1A', color: '#9C9C9C', cursor: 'pointer' }}
+                  >
+                    Copy JSON
+                  </button>
+                </div>
+                <pre style={{ fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: '#9C9C9C', margin: 0, whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>{json}</pre>
+              </div>
+            )
+          })()}
+
           {/* Custom pronunciations panel */}
-          <div style={{ marginTop: '24px' }}>
+          <div style={{ marginTop: '20px' }}>
             <PronunciationPanel
               pronunciations={customPronunciations}
               expanded={pronunciationPanelExpanded}
               onToggleExpanded={() => setPronunciationPanelExpanded(e => !e)}
               onClear={handleClearCustomPronunciation}
-              onCopy={() => addToast('Copied to clipboard')}
             />
           </div>
         </div>
@@ -2597,15 +2623,13 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
 
 // ─── PronunciationPanel ───────────────────────────────────────────────────────
 
-function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear, onCopy }: {
+function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear }: {
   pronunciations: Record<string, string>
   expanded: boolean
   onToggleExpanded: () => void
   onClear: (word: string) => void
-  onCopy: () => void
 }) {
   const entries = Object.entries(pronunciations)
-  const json = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
 
   return (
     <div>
@@ -2626,33 +2650,16 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
           Edit a word's Rime phonetic and press Save to build your custom map.
         </p>
       ) : (
-        <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: expanded ? '10px' : 0 }}>
-            {entries.map(([w, r]) => (
-              <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid rgba(52,211,153,0.25)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' }}>
-                <span style={{ fontFamily: 'ui-monospace, monospace' }}>{w}</span>
-                <span style={{ color: 'rgba(52,211,153,0.4)' }}>→</span>
-                <span style={{ fontFamily: 'ui-monospace, monospace', color: '#7C7C7C' }}>{`{${r}}`}</span>
-                <button onClick={() => onClear(w)} title={`Clear saved pronunciation for "${w}"`} style={{ marginLeft: '1px', color: 'rgba(52,211,153,0.4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1, fontSize: '12px' }}>×</button>
-              </span>
-            ))}
-          </div>
-
-          {expanded && (
-            <div style={{ borderRadius: '5px', backgroundColor: '#141414', border: '0.5px solid #2A2A2A', padding: '10px 12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '10px', color: '#7C7C7C', fontFamily: 'ui-monospace, monospace' }}>rime_custom_pronunciations</span>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(json).catch(() => {}); onCopy() }}
-                  style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid #383838', backgroundColor: '#1f1f1f', color: '#9C9C9C', cursor: 'pointer' }}
-                >
-                  Copy JSON
-                </button>
-              </div>
-              <pre style={{ fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: '#9C9C9C', margin: 0, whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>{json}</pre>
-            </div>
-          )}
-        </>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+          {entries.map(([w, r]) => (
+            <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid rgba(52,211,153,0.25)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' }}>
+              <span style={{ fontFamily: 'ui-monospace, monospace' }}>{w}</span>
+              <span style={{ color: 'rgba(52,211,153,0.4)' }}>→</span>
+              <span style={{ fontFamily: 'ui-monospace, monospace', color: '#7C7C7C' }}>{`{${r}}`}</span>
+              <button onClick={() => onClear(w)} title={`Clear saved pronunciation for "${w}"`} style={{ marginLeft: '1px', color: 'rgba(52,211,153,0.4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1, fontSize: '12px' }}>×</button>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   )
