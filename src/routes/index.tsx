@@ -188,6 +188,8 @@ function ResearchPage() {
     () => loadCustomPronunciations()
   )
   const [pronunciationPanelExpanded, setPronunciationPanelExpanded] = useState(false)
+  const [vocabView, setVocabView] = useState(false)
+  const [manualWords, setManualWords] = useState<string[]>([])
 
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -1163,7 +1165,11 @@ function ResearchPage() {
               expanded={pronunciationPanelExpanded}
               onToggleExpanded={() => setPronunciationPanelExpanded(e => !e)}
               onClear={handleClearCustomPronunciation}
-              onSave={handleSaveCustomPronunciation}
+              onSave={(word, rime) => {
+                handleSaveCustomPronunciation(word, rime)
+                setManualWords(prev => prev.includes(word) ? prev : [...prev, word])
+              }}
+              onViewAll={() => setVocabView(true)}
               addToast={addToast}
             />
           </div>
@@ -1244,9 +1250,8 @@ function ResearchPage() {
             </div>
           )}
 
-          {status === 'done' && results && !isBusy && (
+          {status === 'done' && results && !isBusy && !vocabView && (
             <div>
-
               {/* Compact stats strip */}
               <div style={{ display: 'flex', gap: '40px', padding: '16px 26px', margin: '0 -26px 4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
                 <div>
@@ -1276,6 +1281,7 @@ function ResearchPage() {
                       word={word}
                       frequency={frequency}
                       isFirst={i === 0}
+                      tag="OOV"
                       phonetic={phonetics[word]}
                       phoneticsLoading={phoneticsLoading && !phonetics[word]}
                       loadingAudio={loadingAudio}
@@ -1301,6 +1307,30 @@ function ResearchPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Vocab words view */}
+          {vocabView && (
+            <VocabWordsTable
+              oovWords={results?.oovWords ?? []}
+              manualWords={manualWords}
+              phonetics={phonetics}
+              phoneticsLoading={phoneticsLoading}
+              customPronunciations={customPronunciations}
+              loadingAudio={loadingAudio}
+              playingAudio={playingAudio}
+              onPlay={handlePlay}
+              selectedVoice={selectedVoice}
+              submittedWords={submittedWords}
+              flaggedWords={flaggedWords}
+              onFlag={handleFlag}
+              onCancelFix={handleCancelFix}
+              addToast={addToast}
+              wordSentences={results?.wordSentences ?? {}}
+              onSaveCustomPronunciation={handleSaveCustomPronunciation}
+              onClearCustomPronunciation={handleClearCustomPronunciation}
+              onBack={() => setVocabView(false)}
+            />
           )}
 
           {status === 'idle' && !isBusy && (
@@ -1677,6 +1707,7 @@ function OovRow({
   word,
   frequency,
   isFirst,
+  tag,
   phonetic,
   phoneticsLoading,
   loadingAudio,
@@ -1696,6 +1727,7 @@ function OovRow({
   word: string
   frequency: number
   isFirst: boolean
+  tag?: 'OOV' | 'added'
   phonetic: PhoneticResult | undefined
   phoneticsLoading: boolean
   loadingAudio: string | null
@@ -1880,9 +1912,22 @@ function OovRow({
         >
           {word}
         </span>
-        <span style={{ fontSize: '11px', color: '#7C7C7C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-          ×{frequency.toLocaleString()}
-        </span>
+        {frequency > 0 && (
+          <span style={{ fontSize: '11px', color: '#7C7C7C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+            ×{frequency.toLocaleString()}
+          </span>
+        )}
+        {tag && (
+          <span style={{
+            fontSize: '9px', padding: '1px 5px', borderRadius: '3px', flexShrink: 0,
+            border: tag === 'OOV' ? '0.5px solid rgba(251,191,36,0.3)' : '0.5px solid rgba(52,211,153,0.25)',
+            backgroundColor: tag === 'OOV' ? 'rgba(251,191,36,0.07)' : 'rgba(52,211,153,0.06)',
+            color: tag === 'OOV' ? '#fbbf24' : '#34d399',
+            fontWeight: 500, letterSpacing: '0.02em',
+          }}>
+            {tag === 'OOV' ? 'OOV' : 'added'}
+          </span>
+        )}
       </div>
 
       {pipe}
@@ -2628,12 +2673,13 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
 
 // ─── PronunciationPanel ───────────────────────────────────────────────────────
 
-function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear, onSave, addToast }: {
+function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear, onSave, onViewAll, addToast }: {
   pronunciations: Record<string, string>
   expanded: boolean
   onToggleExpanded: () => void
   onClear: (word: string) => void
   onSave: (word: string, rime: string) => void
+  onViewAll: () => void
   addToast: (msg: string) => void
 }) {
   const entries = Object.entries(pronunciations)
@@ -2755,6 +2801,14 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
             </svg>
             Add word
           </button>
+          {entries.length > 0 && (
+            <button
+              onClick={onViewAll}
+              style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+            >
+              View all
+            </button>
+          )}
           {entries.length > 0 && (
             <button onClick={onToggleExpanded} style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
               {expanded ? 'Collapse' : 'Expand'}
@@ -2896,6 +2950,129 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
               <span style={{ fontFamily: 'ui-monospace, monospace', color: '#7C7C7C' }}>{`{${r}}`}</span>
               <button onClick={() => onClear(w)} title={`Clear saved pronunciation for "${w}"`} style={{ marginLeft: '1px', color: 'rgba(52,211,153,0.4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1, fontSize: '12px' }}>×</button>
             </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── VocabWordsTable ──────────────────────────────────────────────────────────
+
+function VocabWordsTable({
+  oovWords, manualWords, phonetics, phoneticsLoading, customPronunciations,
+  loadingAudio, playingAudio, onPlay, selectedVoice,
+  submittedWords, flaggedWords, onFlag, onCancelFix, addToast,
+  wordSentences, onSaveCustomPronunciation, onClearCustomPronunciation, onBack,
+}: {
+  oovWords: { word: string; frequency: number }[]
+  manualWords: string[]
+  phonetics: Record<string, PhoneticResult>
+  phoneticsLoading: boolean
+  customPronunciations: Record<string, string>
+  loadingAudio: string | null
+  playingAudio: string | null
+  onPlay: (key: string, fetchFn: () => Promise<string>) => void
+  selectedVoice: string
+  submittedWords: Set<string>
+  flaggedWords: Set<string>
+  onFlag: (word: string) => void
+  onCancelFix: (word: string) => void
+  addToast: (msg: string) => void
+  wordSentences: Record<string, string[]>
+  onSaveCustomPronunciation: (word: string, rime: string) => void
+  onClearCustomPronunciation: (word: string) => void
+  onBack: () => void
+}) {
+  const oovSet = new Set(oovWords.map(w => w.word))
+  const manualOnly = manualWords.filter(w => !oovSet.has(w))
+  const totalCount = oovWords.length + manualOnly.length
+
+  return (
+    <div>
+      {/* Header bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 26px', margin: '0 -26px',
+        borderBottom: '0.5px solid #383838', backgroundColor: '#141414',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>Vocab Words</span>
+          <span style={{ fontSize: '11px', color: '#7C7C7C' }}>
+            {totalCount} total
+            {oovWords.length > 0 && <span> · <span style={{ color: '#fbbf24' }}>{oovWords.length} OOV</span></span>}
+            {manualOnly.length > 0 && <span> · <span style={{ color: '#34d399' }}>{manualOnly.length} added</span></span>}
+          </span>
+        </div>
+        <button
+          onClick={onBack}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            fontSize: '11px', padding: '4px 10px', borderRadius: '5px',
+            border: '0.5px solid #383838', backgroundColor: 'transparent',
+            color: '#7C7C7C', cursor: 'pointer',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M8 2L4 6l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Results
+        </button>
+      </div>
+
+      {totalCount === 0 ? (
+        <div style={{ padding: '48px 26px', textAlign: 'center' }}>
+          <p style={{ fontSize: '13px', color: '#7C7C7C' }}>No vocab words yet — add words via the Custom Pronunciations panel.</p>
+        </div>
+      ) : (
+        <div style={{ margin: '0 -26px' }}>
+          {oovWords.map(({ word, frequency }, i) => (
+            <OovRow
+              key={word}
+              word={word}
+              frequency={frequency}
+              isFirst={i === 0}
+              tag="OOV"
+              phonetic={phonetics[word]}
+              phoneticsLoading={phoneticsLoading && !phonetics[word]}
+              loadingAudio={loadingAudio}
+              playingAudio={playingAudio}
+              onPlay={onPlay}
+              selectedVoice={selectedVoice}
+              isSubmitted={submittedWords.has(word)}
+              isFlagged={flaggedWords.has(word)}
+              onFlag={onFlag}
+              onCancelFix={onCancelFix}
+              addToast={addToast}
+              sentences={wordSentences[word] ?? []}
+              customPronunciation={customPronunciations[word]}
+              onSaveCustomPronunciation={onSaveCustomPronunciation}
+              onClearCustomPronunciation={onClearCustomPronunciation}
+            />
+          ))}
+          {manualOnly.map((word, i) => (
+            <OovRow
+              key={word}
+              word={word}
+              frequency={0}
+              isFirst={oovWords.length === 0 && i === 0}
+              tag="added"
+              phonetic={phonetics[word]}
+              phoneticsLoading={phoneticsLoading && !phonetics[word]}
+              loadingAudio={loadingAudio}
+              playingAudio={playingAudio}
+              onPlay={onPlay}
+              selectedVoice={selectedVoice}
+              isSubmitted={submittedWords.has(word)}
+              isFlagged={flaggedWords.has(word)}
+              onFlag={onFlag}
+              onCancelFix={onCancelFix}
+              addToast={addToast}
+              sentences={wordSentences[word] ?? []}
+              customPronunciation={customPronunciations[word]}
+              onSaveCustomPronunciation={onSaveCustomPronunciation}
+              onClearCustomPronunciation={onClearCustomPronunciation}
+            />
           ))}
         </div>
       )}
