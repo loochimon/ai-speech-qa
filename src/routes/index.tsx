@@ -10,6 +10,7 @@ import {
   fetchWordPhonetics,
   fetchVoices,
   generateScript,
+  transcribeAudio,
   type PhoneticResult,
   type VoiceEntry,
 } from '#/lib/api'
@@ -141,6 +142,12 @@ interface HistoryEntry {
 // ─── component ────────────────────────────────────────────────────────────────
 
 const RESEARCH_STORAGE_KEY = 'rime_research_session'
+const CUSTOM_PRONUNCIATIONS_KEY = 'rime_custom_pronunciations'
+
+function loadCustomPronunciations(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_PRONUNCIATIONS_KEY) ?? '{}') }
+  catch { return {} }
+}
 
 function loadSession(): { text: string; results: Results | null; phonetics: Record<string, PhoneticResult>; submittedWords: string[]; flaggedWords: string[] } | null {
   try {
@@ -177,6 +184,11 @@ function ResearchPage() {
   const [voices, setVoices] = useState<VoiceEntry[]>([])
   const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE)
 
+  const [customPronunciations, setCustomPronunciations] = useState<Record<string, string>>(
+    () => loadCustomPronunciations()
+  )
+  const [pronunciationPanelExpanded, setPronunciationPanelExpanded] = useState(false)
+
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [textareaHeight, setTextareaHeight] = useState(280)
@@ -195,6 +207,11 @@ function ResearchPage() {
       }))
     } catch { /* quota exceeded — ignore */ }
   }, [text, results, phonetics, submittedWords, flaggedWords, resultsStale])
+
+  useEffect(() => {
+    try { localStorage.setItem(CUSTOM_PRONUNCIATIONS_KEY, JSON.stringify(customPronunciations)) }
+    catch { /* quota exceeded */ }
+  }, [customPronunciations])
 
   const handleDragBarMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -517,6 +534,16 @@ function ResearchPage() {
       return [{ ...latest, submittedWords: [] }, ...rest]
     })
   }, [])
+
+  const handleSaveCustomPronunciation = useCallback((word: string, rime: string) => {
+    setCustomPronunciations(prev => ({ ...prev, [word]: rime }))
+    addToast(`Saved pronunciation for "${word}"`)
+  }, [addToast])
+
+  const handleClearCustomPronunciation = useCallback((word: string) => {
+    setCustomPronunciations(prev => { const n = { ...prev }; delete n[word]; return n })
+    addToast(`Cleared pronunciation for "${word}"`)
+  }, [addToast])
 
   // ── exports ─────────────────────────────────────────────────────────────────
 
@@ -1101,6 +1128,17 @@ function ResearchPage() {
               onRestore={handleRestore}
             />
           </div>
+
+          {/* Custom pronunciations panel */}
+          <div style={{ marginTop: '24px' }}>
+            <PronunciationPanel
+              pronunciations={customPronunciations}
+              expanded={pronunciationPanelExpanded}
+              onToggleExpanded={() => setPronunciationPanelExpanded(e => !e)}
+              onClear={handleClearCustomPronunciation}
+              onCopy={() => addToast('Copied to clipboard')}
+            />
+          </div>
         </div>
 
         {/* Vertical divider */}
@@ -1222,6 +1260,9 @@ function ResearchPage() {
                       onCancelFix={handleCancelFix}
                       addToast={addToast}
                       sentences={results.wordSentences?.[word] ?? []}
+                      customPronunciation={customPronunciations[word]}
+                      onSaveCustomPronunciation={handleSaveCustomPronunciation}
+                      onClearCustomPronunciation={handleClearCustomPronunciation}
                     />
                   ))}
                 </div>
@@ -1620,6 +1661,9 @@ function OovRow({
   onCancelFix,
   addToast,
   sentences,
+  customPronunciation,
+  onSaveCustomPronunciation,
+  onClearCustomPronunciation,
 }: {
   word: string
   frequency: number
@@ -1636,6 +1680,9 @@ function OovRow({
   onCancelFix: (word: string) => void
   addToast: (msg: string) => void
   sentences: string[]
+  customPronunciation?: string
+  onSaveCustomPronunciation: (word: string, rime: string) => void
+  onClearCustomPronunciation: (word: string) => void
 }) {
   const defaultKey = `${word}:default`
   const hasPhonetic = !!phonetic
@@ -1664,6 +1711,11 @@ function OovRow({
   // Key includes the full display text so cache is invalidated on every edit
   const suggestedKey = `${word}:${activeRimeDisplay}`
 
+  // Custom pronunciation save state
+  const isSaved = customPronunciation !== undefined
+  const activeRimeBare = activeRimeDisplay.replace(/^\{|\}$/g, '')
+  const hasPendingChange = activeRimeBare.length > 0 && activeRimeBare !== customPronunciation
+
   // Reset when the underlying phonetic changes (e.g. re-run check)
   const prevPhoneticRef = useRef(phonetic?.rime)
   useEffect(() => {
@@ -1672,6 +1724,12 @@ function OovRow({
       prevPhoneticRef.current = phonetic?.rime
     }
   }, [phonetic?.rime])
+
+  // Pre-populate input with saved pronunciation on first mount (if no local edit yet)
+  useEffect(() => {
+    if (customPronunciation !== undefined && editedRime === null)
+      setEditedRime(`{${customPronunciation}}`)
+  }, [customPronunciation]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── note state ───────────────────────────────────────────────────────────────
   const [showNote, setShowNote] = useState(false)
@@ -1717,18 +1775,29 @@ function OovRow({
       const mr = new MediaRecorder(stream)
       mediaRecorderRef.current = mr
       mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-      mr.onstop = () => {
+      mr.onstop = () => { void (async () => {
         stream.getTracks().forEach(t => t.stop())
         const blob = new Blob(chunks, { type: 'audio/webm' })
-        const url = URL.createObjectURL(blob)
-        setRecordedUrl(url)
+        setRecordedUrl(URL.createObjectURL(blob))
         setRecState('analyzing')
-        // Simulate a 2.5s "analysis" then show the not-available notice
-        analysisTimerRef.current = setTimeout(() => {
-          setRecState('done')
-          addToast('Recording captured — phonetic correction via audio matching requires a production API not available in this prototype')
-        }, 2500)
-      }
+        try {
+          // Whisper → what the user said (prompt biases toward the OOV word)
+          const spoken = await transcribeAudio(blob, OPENAI_API_KEY, word)
+          const lookupWord = spoken.toLowerCase().trim() || word.toLowerCase()
+          // fetchWordPhonetics → IPA → Rime for the spoken form
+          const map = await fetchWordPhonetics([lookupWord], OPENAI_API_KEY)
+          const result = map[lookupWord] ?? map[Object.keys(map)[0]]
+          if (result) {
+            setEditedRime(`{${result.rime}}`)
+            addToast('Rime phonetic populated from your recording — press Save to keep it')
+          } else {
+            addToast('Could not infer phonetic — edit the Rime field manually')
+          }
+        } catch {
+          addToast('Recording done — phonetic inference failed, edit manually')
+        }
+        setRecState('done')
+      })() }
       mr.start()
       setRecState('recording')
     } catch {
@@ -1873,6 +1942,22 @@ function OovRow({
                 <path d="M7.5 1h2.5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
+          )}
+          {hasPendingChange && (
+            <button
+              onClick={() => onSaveCustomPronunciation(word, activeRimeBare)}
+              title="Save this pronunciation for use with your LiveKit agent"
+              style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', border: '0.5px solid rgba(52,211,153,0.4)', backgroundColor: 'rgba(52,211,153,0.08)', color: '#34d399', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              Save
+            </button>
+          )}
+          {isSaved && !hasPendingChange && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', border: '0.5px solid rgba(52,211,153,0.25)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399', flexShrink: 0 }}>
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1.5 4l2 2L6.5 2" stroke="#34d399" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Saved
+              <button onClick={() => onClearCustomPronunciation(word)} title="Clear saved pronunciation" style={{ marginLeft: '2px', color: 'rgba(52,211,153,0.5)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1, fontSize: '11px' }}>×</button>
+            </span>
           )}
         </>
       ) : (
@@ -2382,6 +2467,69 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
             <HistoryItem key={entry.id} entry={entry} onRestore={onRestore} />
           ))}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── PronunciationPanel ───────────────────────────────────────────────────────
+
+function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear, onCopy }: {
+  pronunciations: Record<string, string>
+  expanded: boolean
+  onToggleExpanded: () => void
+  onClear: (word: string) => void
+  onCopy: () => void
+}) {
+  const entries = Object.entries(pronunciations)
+  const json = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>
+          Custom Pronunciations
+          {entries.length > 0 && <span style={{ marginLeft: '5px', fontSize: '11px', color: '#7C7C7C', fontWeight: 400 }}>({entries.length})</span>}
+        </span>
+        {entries.length > 0 && (
+          <button onClick={onToggleExpanded} style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+            {expanded ? 'Collapse' : 'Expand'}
+          </button>
+        )}
+      </div>
+
+      {entries.length === 0 ? (
+        <p style={{ fontSize: '11px', color: '#7C7C7C', margin: 0 }}>
+          Edit a word's Rime phonetic and press Save to build your custom map.
+        </p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: expanded ? '10px' : 0 }}>
+            {entries.map(([w, r]) => (
+              <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid rgba(52,211,153,0.25)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace' }}>{w}</span>
+                <span style={{ color: 'rgba(52,211,153,0.4)' }}>→</span>
+                <span style={{ fontFamily: 'ui-monospace, monospace', color: '#7C7C7C' }}>{`{${r}}`}</span>
+                <button onClick={() => onClear(w)} title={`Clear saved pronunciation for "${w}"`} style={{ marginLeft: '1px', color: 'rgba(52,211,153,0.4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1, fontSize: '12px' }}>×</button>
+              </span>
+            ))}
+          </div>
+
+          {expanded && (
+            <div style={{ borderRadius: '5px', backgroundColor: '#141414', border: '0.5px solid #2A2A2A', padding: '10px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '10px', color: '#7C7C7C', fontFamily: 'ui-monospace, monospace' }}>rime_custom_pronunciations</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(json).catch(() => {}); onCopy() }}
+                  style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid #383838', backgroundColor: '#1f1f1f', color: '#9C9C9C', cursor: 'pointer' }}
+                >
+                  Copy JSON
+                </button>
+              </div>
+              <pre style={{ fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: '#9C9C9C', margin: 0, whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>{json}</pre>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

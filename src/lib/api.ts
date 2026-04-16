@@ -338,3 +338,20 @@ export async function fetchPhoneticAudio(text: string, apiKey: string, speaker =
   const blob = await res.blob()
   return URL.createObjectURL(blob)
 }
+
+// Send recorded audio to OpenAI Whisper and return the transcribed text.
+// Pass `prompt` as the OOV word to bias Whisper toward recognising it.
+export async function transcribeAudio(audioBlob: Blob, apiKey: string, prompt?: string): Promise<string> {
+  const form = new FormData()
+  form.append('file', audioBlob, 'recording.webm')
+  form.append('model', 'whisper-1')
+  form.append('language', 'en')
+  if (prompt) form.append('prompt', prompt)
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  })
+  if (!res.ok) throw new Error(`Whisper API error ${res.status}: ${await res.text()}`)
+  return ((await res.json()).text as string).trim()
+}
