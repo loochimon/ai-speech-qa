@@ -2644,6 +2644,57 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
   const [addLoading, setAddLoading] = useState(false)
   const wordInputRef = useRef<HTMLInputElement>(null)
 
+  // Recording state
+  type RecState = 'idle' | 'recording' | 'analyzing' | 'done'
+  const [recState, setRecState] = useState<RecState>('idle')
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  const handleMicClick = async () => {
+    if (recState === 'recording') {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+    if (recState === 'analyzing' || recState === 'done') {
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      setRecState('idle')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const chunks: BlobPart[] = []
+      const mr = new MediaRecorder(stream)
+      mediaRecorderRef.current = mr
+      mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+      mr.onstop = () => { void (async () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(chunks, { type: 'audio/webm' })
+        setRecState('analyzing')
+        try {
+          const spoken = await transcribeAudio(blob, OPENAI_API_KEY, addWord || undefined)
+          const lookupWord = spoken.toLowerCase().trim() || addWord.toLowerCase()
+          if (lookupWord && !addWord) setAddWord(lookupWord)
+          const map = await fetchWordPhonetics([lookupWord || addWord.toLowerCase()], OPENAI_API_KEY)
+          const result = map[lookupWord] ?? map[addWord.toLowerCase()] ?? map[Object.keys(map)[0]]
+          if (result) {
+            setAddRime(`{${result.rime}}`)
+            addToast('Rime phonetic populated from recording — press Save to keep it')
+          } else {
+            addToast('Could not infer phonetic — edit the Rime field manually')
+          }
+        } catch {
+          addToast('Recording done — phonetic inference failed, edit manually')
+        }
+        setRecState('done')
+      })() }
+      mr.start()
+      setRecState('recording')
+    } catch {
+      addToast('Microphone access denied')
+    }
+  }
+
   const handleLookup = async () => {
     const w = addWord.trim().toLowerCase()
     if (!w) return
@@ -2773,6 +2824,38 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
                 }
               </button>
             </div>
+            {/* Record button */}
+            <button
+              onClick={handleMicClick}
+              title={recState === 'idle' ? 'Record your pronunciation to auto-fill' : recState === 'recording' ? 'Stop recording' : recState === 'analyzing' ? 'Analyzing…' : 'Click to redo'}
+              style={{
+                height: '30px', padding: '0 9px', borderRadius: '5px', fontSize: '11px',
+                display: 'flex', alignItems: 'center', gap: '5px',
+                border: `0.5px solid ${recState === 'recording' ? 'rgba(239,68,68,0.5)' : '#383838'}`,
+                backgroundColor: recState === 'recording' ? 'rgba(239,68,68,0.08)' : 'transparent',
+                color: recState === 'recording' ? '#ef4444' : recState === 'done' ? '#CFCFCF' : '#7C7C7C',
+                cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', boxSizing: 'border-box',
+              }}
+            >
+              {recState === 'analyzing' ? (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+                  <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="11 6" strokeLinecap="round"/>
+                </svg>
+              ) : recState === 'recording' ? (
+                <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: '#ef4444', display: 'block' }} />
+              ) : recState === 'done' ? (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <rect x="3.5" y="1" width="3" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M1.5 5a3.5 3.5 0 0 0 7 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                  <line x1="5" y1="8.5" x2="5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+              )}
+              {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing…' : 'Redo'}
+            </button>
             {/* Save */}
             <button
               onClick={handleSave}
