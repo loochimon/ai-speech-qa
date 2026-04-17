@@ -244,18 +244,18 @@ function Sidebar() {
           label="Platform"
           items={[
             { label: 'Dashboard', icon: <IconDashboard /> },
-            { label: 'Generate Audio', icon: <IconWaveform /> },
-            { label: 'Talk to Rime', icon: <IconMic /> },
+            { label: 'Generate Speech', icon: <IconWaveform /> },
+            { label: 'Live Voice Chat Demo', icon: <IconMic /> },
             { label: 'Voice Library', icon: <IconLibrary /> },
             {
               label: 'Speech QA',
               icon: <IconShield />,
               expanded: true,
               children: [
-                { label: 'Research', href: '/' },
-                { label: 'Monitoring', href: '/my-words' },
-                { label: 'Corrections', href: '/corrections', admin: true, badge: true },
-                { label: 'Annotation Management', href: '/annotation-management', admin: true },
+                { label: 'Check Pronunciation', href: '/' },
+                { label: 'Review Corrections', href: '/my-words' },
+                { label: 'Audit User Requests', href: '/corrections', admin: true, badge: true },
+                { label: 'Audit Rime Corrections', href: '/annotation-management', admin: true },
               ],
             },
           ]}

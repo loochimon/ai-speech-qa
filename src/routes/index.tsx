@@ -187,9 +187,6 @@ function ResearchPage() {
   const [customPronunciations, setCustomPronunciations] = useState<Record<string, string>>(
     () => loadCustomPronunciations()
   )
-  const [pronunciationPanelExpanded, setPronunciationPanelExpanded] = useState(false)
-  const [vocabView, setVocabView] = useState(false)
-  const [manualWords, setManualWords] = useState<string[]>([])
 
   const [isDragging, setIsDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -843,7 +840,7 @@ function ResearchPage() {
       {/* ── Title row ── */}
       <div style={{ padding: '24px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)' }}>
         <h1 style={{ fontWeight: 700, fontSize: '24px', color: '#FFFFFF', margin: 0, letterSpacing: '-0.01em' }}>
-          Check Coverage
+          Check Pronunciation
         </h1>
         <a
           href="https://docs.rime.ai/"
@@ -934,7 +931,7 @@ function ResearchPage() {
 
           {/* Script label + AI Generate + Upload */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
-            <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>Script</span>
+            <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>Script or Word List</span>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <div ref={generateRef} style={{ position: 'relative' }}>
                 <button
@@ -1024,7 +1021,14 @@ function ResearchPage() {
 
           {/* Textarea */}
           <div
-            style={{ position: 'relative' }}
+            style={{
+              position: 'relative',
+              backgroundColor: '#111111',
+              border: '0.5px solid #2A2A2A',
+              borderRadius: '7px',
+              padding: '4px 12px',
+              marginBottom: '10px',
+            }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -1054,7 +1058,7 @@ function ResearchPage() {
                 backgroundColor: 'transparent',
                 border: 'none',
                 color: '#FFFFFF', fontSize: '14px',
-                padding: '8px 0', outline: 'none', lineHeight: '1.5',
+                padding: '6px 0', outline: 'none', lineHeight: '1.5',
                 opacity: isBusy ? 0.5 : 1,
                 position: 'relative', zIndex: 1,
               }}
@@ -1063,24 +1067,22 @@ function ResearchPage() {
             {!text && (
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0,
-                padding: '8px 0', pointerEvents: 'none', zIndex: 0,
+                padding: '10px 12px', pointerEvents: 'none', zIndex: 0,
               }}>
                 <p style={{ fontSize: '14px', color: '#555', margin: '0 0 20px', lineHeight: 1.5 }}>
-                  Paste a script or enter words to check…
+                  Paste or enter words to check their default pronunciation…
                 </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {[
                     { icon: '↵', text: 'One word per line' },
                     { icon: ',', text: 'Comma-separated' },
                     { icon: '↑', text: 'Drag & drop a file' },
                   ].map(tip => (
                     <span key={tip.text} style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '5px',
-                      padding: '3px 8px', borderRadius: '4px',
-                      backgroundColor: '#1a1a1a', border: '0.5px solid #2a2a2a',
-                      fontSize: '11px', color: '#555',
+                      display: 'inline-flex', alignItems: 'center', gap: '6px',
+                      fontSize: '11px', color: '#444',
                     }}>
-                      <span style={{ fontFamily: 'monospace', color: '#444' }}>{tip.icon}</span>
+                      <span style={{ fontFamily: 'monospace', color: '#383838', fontSize: '12px' }}>{tip.icon}</span>
                       {tip.text}
                     </span>
                   ))}
@@ -1134,42 +1136,12 @@ function ResearchPage() {
           {/* Separator */}
           <div style={{ margin: '20px -26px 0', borderTop: '0.5px solid #2A2A2A' }} />
 
-          {/* Expanded JSON drawer — sits between the two sections */}
-          {pronunciationPanelExpanded && Object.keys(customPronunciations).length > 0 && (() => {
-            const entries = Object.entries(customPronunciations)
-            const json = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
-            return (
-              <div style={{ margin: '0 -26px', padding: '14px 26px', backgroundColor: '#0E0E0E', borderBottom: '0.5px solid #2A2A2A' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '10px', color: '#7C7C7C', fontFamily: 'ui-monospace, monospace' }}>rime_custom_pronunciations</span>
-                  <button
-                    onClick={() => {
-                      const json2 = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
-                      navigator.clipboard.writeText(json2).catch(() => {})
-                      addToast('Copied to clipboard')
-                    }}
-                    style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid #383838', backgroundColor: '#1A1A1A', color: '#9C9C9C', cursor: 'pointer' }}
-                  >
-                    Copy JSON
-                  </button>
-                </div>
-                <pre style={{ fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: '#9C9C9C', margin: 0, whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>{json}</pre>
-              </div>
-            )
-          })()}
-
           {/* Custom pronunciations panel */}
           <div style={{ marginTop: '20px' }}>
             <PronunciationPanel
               pronunciations={customPronunciations}
-              expanded={pronunciationPanelExpanded}
-              onToggleExpanded={() => setPronunciationPanelExpanded(e => !e)}
               onClear={handleClearCustomPronunciation}
-              onSave={(word, rime) => {
-                handleSaveCustomPronunciation(word, rime)
-                setManualWords(prev => prev.includes(word) ? prev : [...prev, word])
-              }}
-              onViewAll={() => setVocabView(true)}
+              onSave={handleSaveCustomPronunciation}
               addToast={addToast}
             />
           </div>
@@ -1185,25 +1157,13 @@ function ResearchPage() {
           <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', gap: '12px', flexWrap: 'nowrap', borderBottom: '0.5px solid #2A2A2A', marginBottom: '0', margin: '0 -26px', padding: '0 26px' }}>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: '20px', flexShrink: 0 }}>
               <span style={{
-                fontSize: '15px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap',
+                fontSize: '14px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap',
                 paddingTop: '16px', paddingBottom: '16px',
               }}>
-                Not in dictionary{results ? ` (${results.oovWords.length})` : ''}
+                Not currently in Rime's default pronunciation dictionary{results ? ` (${results.oovWords.length})` : ''}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-              <button
-                onClick={handleSubmitFlagged}
-                disabled={status !== 'done' || !results || results.oovWords.length === 0}
-                style={{
-                  borderRadius: '5px', padding: '5px 12px', border: 'none',
-                  fontSize: '12px', cursor: 'pointer',
-                  backgroundColor: '#FFFFFF', color: '#000000',
-                  opacity: (status !== 'done' || !results || results.oovWords.length === 0) ? 0.4 : 1,
-                }}
-              >
-                Request Pronunciation
-              </button>
               <button
                 onClick={() => window.open('/shared', '_blank')}
                 disabled={status !== 'done' || !results || results.oovWords.length === 0}
@@ -1253,7 +1213,7 @@ function ResearchPage() {
           {status === 'done' && results && !isBusy && (
             <div>
               {/* Compact stats strip */}
-              <div style={{ display: 'flex', gap: '40px', padding: '16px 26px', margin: '0 -26px 4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '40px', padding: '16px 26px', margin: '0 -26px 4px', borderBottom: '0.5px solid #383838', backgroundColor: '#141414' }}>
                 <div>
                   <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Total words</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{results.totalTokens.toLocaleString()}</div>
@@ -1270,6 +1230,21 @@ function ResearchPage() {
                   <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '3px' }}>Coverage</div>
                   <div className={`text-lg font-bold tabular-nums ${coverageColor}`}>{results.coveragePct.toFixed(1)}%</div>
                 </div>
+                {results.oovWords.length > 0 && (
+                  <div style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: '11px', color: '#7C7C7C', marginBottom: '5px' }}>Want Rime to review these pronunciations?</div>
+                    <button
+                      onClick={handleSubmitFlagged}
+                      style={{
+                        borderRadius: '5px', padding: '5px 14px', border: '0.5px solid #434343',
+                        fontSize: '12px', fontWeight: 500, cursor: 'pointer',
+                        backgroundColor: '#FFFFFF', color: '#000000',
+                      }}
+                    >
+                      Correct All Words
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* OOV list */}
@@ -1281,7 +1256,6 @@ function ResearchPage() {
                       word={word}
                       frequency={frequency}
                       isFirst={i === 0}
-                      tag="OOV"
                       phonetic={phonetics[word]}
                       phoneticsLoading={phoneticsLoading && !phonetics[word]}
                       loadingAudio={loadingAudio}
@@ -1307,11 +1281,11 @@ function ResearchPage() {
                 </div>
               )}
 
-              {/* Custom Pronunciations section — appended below when "View all" is clicked */}
-              {vocabView && (() => {
-                const oovSet = new Set(results.oovWords.map(w => w.word))
-                const manualOnly = manualWords.filter(w => !oovSet.has(w))
-                if (manualOnly.length === 0) return null
+              {/* All Words — overview pills for every unique word in the checked text */}
+              {(() => {
+                const allWords = Array.from(parseWords(text).keys()).sort((a, b) => a.localeCompare(b))
+                const oovSet = new Set(results.oovWords.map(w => w.word.toLowerCase()))
+                if (allWords.length === 0) return null
                 return (
                   <div>
                     <div style={{
@@ -1320,33 +1294,23 @@ function ResearchPage() {
                       borderTop: '0.5px solid #2A2A2A', borderBottom: '0.5px solid #2A2A2A',
                       backgroundColor: '#111111',
                     }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#CFCFCF' }}>Custom Pronunciations</span>
-                      <span style={{ fontSize: '11px', color: '#5C5C5C' }}>{manualOnly.length}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#CFCFCF' }}>All Words</span>
+                      <span style={{ fontSize: '11px', color: '#5C5C5C' }}>{allWords.length}</span>
                     </div>
-                    <div style={{ margin: '0 -26px' }}>
-                      {manualOnly.map((word, i) => (
-                        <OovRow
-                          key={word}
-                          word={word}
-                          frequency={0}
-                          isFirst={i === 0}
-                          phonetic={phonetics[word]}
-                          phoneticsLoading={phoneticsLoading && !phonetics[word]}
-                          loadingAudio={loadingAudio}
-                          playingAudio={playingAudio}
-                          onPlay={handlePlay}
-                          selectedVoice={selectedVoice}
-                          isSubmitted={submittedWords.has(word)}
-                          isFlagged={flaggedWords.has(word)}
-                          onFlag={handleFlag}
-                          onCancelFix={handleCancelFix}
-                          addToast={addToast}
-                          sentences={[]}
-                          customPronunciation={customPronunciations[word]}
-                          onSaveCustomPronunciation={handleSaveCustomPronunciation}
-                          onClearCustomPronunciation={handleClearCustomPronunciation}
-                        />
-                      ))}
+                    <div style={{ padding: '12px 26px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                      {allWords.map(word => {
+                        const isOov = oovSet.has(word.toLowerCase())
+                        return (
+                          <span key={word} style={{
+                            padding: '2px 8px', borderRadius: '99px', fontSize: '12px',
+                            backgroundColor: isOov ? 'rgba(251,146,60,0.12)' : 'rgba(255,255,255,0.04)',
+                            border: `0.5px solid ${isOov ? 'rgba(251,146,60,0.35)' : '#2A2A2A'}`,
+                            color: isOov ? '#fb923c' : '#7C7C7C',
+                          }}>
+                            {word}
+                          </span>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -1398,23 +1362,25 @@ function ResearchPage() {
               </svg>
             </div>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-emphasis)', marginBottom: '8px' }}>
-              Words Requested
+              Pronunciation Corrections Requested
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
-              {results?.oovWords.length} word{(results?.oovWords.length ?? 0) !== 1 ? 's' : ''} sent to the annotation team for pronunciation review.
+              {(results?.oovWords.length ?? 0) === 1
+                ? '1 word sent to Rime to review and correct its pronunciation.'
+                : `${results?.oovWords.length} words sent to Rime to review and correct their pronunciations.`}
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               <button
                 onClick={() => setShowRequestConfirm(false)}
                 style={{ padding: '8px 24px', borderRadius: '5px', fontSize: '13px', whiteSpace: 'nowrap', border: '1px solid var(--border-default)', backgroundColor: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
               >
-                Back to Check Coverage
+                Back
               </button>
               <button
                 onClick={() => { setShowRequestConfirm(false); navigate({ to: '/my-words' }) }}
                 style={{ padding: '8px 24px', borderRadius: '5px', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', border: 'none', backgroundColor: '#ffffff', color: '#000000', cursor: 'pointer' }}
               >
-                View My Words →
+                Review Corrections →
               </button>
             </div>
           </div>
@@ -1728,7 +1694,6 @@ function OovRow({
   word,
   frequency,
   isFirst,
-  tag,
   phonetic,
   phoneticsLoading,
   loadingAudio,
@@ -1744,11 +1709,11 @@ function OovRow({
   customPronunciation,
   onSaveCustomPronunciation,
   onClearCustomPronunciation,
+  showInlineClear,
 }: {
   word: string
   frequency: number
   isFirst: boolean
-  tag?: 'OOV' | 'added'
   phonetic: PhoneticResult | undefined
   phoneticsLoading: boolean
   loadingAudio: string | null
@@ -1764,6 +1729,7 @@ function OovRow({
   customPronunciation?: string
   onSaveCustomPronunciation: (word: string, rime: string) => void
   onClearCustomPronunciation: (word: string) => void
+  showInlineClear?: boolean
 }) {
   const defaultKey = `${word}:default`
   const hasPhonetic = !!phonetic
@@ -1938,17 +1904,6 @@ function OovRow({
             ×{frequency.toLocaleString()}
           </span>
         )}
-        {tag && (
-          <span style={{
-            fontSize: '9px', padding: '1px 5px', borderRadius: '3px', flexShrink: 0,
-            border: tag === 'OOV' ? '0.5px solid rgba(251,191,36,0.3)' : '0.5px solid rgba(52,211,153,0.25)',
-            backgroundColor: tag === 'OOV' ? 'rgba(251,191,36,0.07)' : 'rgba(52,211,153,0.06)',
-            color: tag === 'OOV' ? '#fbbf24' : '#34d399',
-            fontWeight: 500, letterSpacing: '0.02em',
-          }}>
-            {tag === 'OOV' ? 'OOV' : 'added'}
-          </span>
-        )}
       </div>
 
       {pipe}
@@ -2019,103 +1974,39 @@ function OovRow({
             display: 'flex', alignItems: 'center', gap: '5px',
             fontSize: '11px', padding: '4px 10px',
             borderRadius: '5px',
-            border: isSaved
-              ? '0.5px solid rgba(52,211,153,0.35)'
-              : `0.5px solid ${showCustomInput ? '#5C5C5C' : '#383838'}`,
-            backgroundColor: isSaved
-              ? 'rgba(52,211,153,0.07)'
-              : showCustomInput ? 'rgba(255,255,255,0.04)' : 'transparent',
-            color: isSaved ? '#34d399' : showCustomInput ? '#CFCFCF' : '#7C7C7C',
+            border: `0.5px solid ${showCustomInput ? '#5C5C5C' : '#383838'}`,
+            backgroundColor: showCustomInput ? 'rgba(255,255,255,0.04)' : 'transparent',
+            color: showCustomInput ? '#CFCFCF' : '#7C7C7C',
             cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
           }}
         >
           {isSaved ? (
-            <>
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                <path d="M1.5 4l2 2L6.5 2" stroke="#34d399" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Saved
-            </>
+            'Edit'
           ) : (
             <>
               <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
                 <line x1="4.5" y1="1" x2="4.5" y2="8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
                 <line x1="1" y1="4.5" x2="8" y2="4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
               </svg>
-              Custom pronunciation
+              Add pronunciation
             </>
           )}
         </button>
 
-        {/* Pipe + note icon */}
-        <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2A2A2A', flexShrink: 0, margin: '0 10px' }} />
-        <div style={{ position: 'relative', flexShrink: 0 }}>
+        {/* Inline clear × — shown in custom pronunciations table */}
+        {showInlineClear && isSaved && (
           <button
-            onClick={() => setShowNote(v => !v)}
-            title="Add note"
+            onClick={() => onClearCustomPronunciation(word)}
+            title="Remove custom pronunciation"
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '22px', height: '22px', borderRadius: '5px',
-              border: `1px solid ${showNote || noteText ? 'rgba(139,92,246,0.4)' : 'var(--border-subtle)'}`,
-              backgroundColor: showNote ? 'rgba(139,92,246,0.08)' : 'transparent',
-              color: showNote || noteText ? '#a78bfa' : '#7C7C7C', cursor: 'pointer',
+              width: '20px', height: '20px', borderRadius: '4px', flexShrink: 0,
+              border: 'none', backgroundColor: 'transparent',
+              color: '#3C3C3C', cursor: 'pointer', fontSize: '15px', lineHeight: 1,
             }}
-          >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1"/>
-              <line x1="3.5" y1="4.5" x2="7.5" y2="4.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-              <line x1="3.5" y1="6.5" x2="7.5" y2="6.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-              <line x1="3.5" y1="8.5" x2="6" y2="8.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
-            </svg>
-          </button>
+          >×</button>
+        )}
 
-          {showNote && (
-            <div style={{
-              position: 'absolute', right: 0, top: '30px', zIndex: 50,
-              width: '280px', borderRadius: '8px',
-              backgroundColor: 'var(--surface-1)',
-              border: '1px solid var(--border-default)',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-              padding: '12px',
-              display: 'flex', flexDirection: 'column', gap: '10px',
-            }}>
-              <textarea
-                autoFocus
-                value={noteText}
-                onChange={e => setNoteText(e.target.value)}
-                placeholder="Add a note about this word…"
-                rows={3}
-                style={{
-                  width: '100%', resize: 'none', outline: 'none',
-                  backgroundColor: 'var(--surface-2)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '5px', padding: '8px 10px',
-                  fontSize: '12px', color: 'var(--text-emphasis)', lineHeight: 1.5,
-                  boxSizing: 'border-box', fontFamily: 'inherit',
-                }}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  onClick={() => setShowNote(false)}
-                  style={{
-                    flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
-                    fontWeight: 500, cursor: 'pointer',
-                    border: '1px solid var(--border-default)',
-                    backgroundColor: 'transparent', color: 'var(--text-secondary)',
-                  }}
-                >Cancel</button>
-                <button
-                  onClick={() => setShowNote(false)}
-                  style={{
-                    flex: 1, padding: '6px 0', borderRadius: '5px', fontSize: '12px',
-                    fontWeight: 600, cursor: 'pointer',
-                    border: 'none', backgroundColor: '#ffffff', color: '#000000',
-                  }}
-                >Save</button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
       </div>
 
@@ -2124,7 +2015,7 @@ function OovRow({
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             gap: '8px',
             marginTop: '8px',
             padding: '10px 12px',
@@ -2133,6 +2024,7 @@ function OovRow({
             border: '0.5px solid #2E2E2E',
           }}
         >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Rime text input with play button inside */}
           <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
             <input
@@ -2300,6 +2192,34 @@ function OovRow({
           >
             ×
           </button>
+        </div>
+
+        {/* Notes row */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            value={noteText}
+            onChange={e => setNoteText(e.target.value)}
+            placeholder="Add a note about this word…"
+            style={{
+              flex: 1, height: '30px', fontSize: '12px',
+              backgroundColor: '#1A1A1A', border: '0.5px solid #383838',
+              borderRadius: '5px', color: '#CFCFCF', padding: '0 10px',
+              outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+            }}
+          />
+          {noteText && (
+            <button
+              onClick={() => setShowNote(false)}
+              style={{
+                height: '30px', fontSize: '11px', padding: '0 12px', borderRadius: '5px',
+                border: '0.5px solid #383838', backgroundColor: 'transparent',
+                color: '#9C9C9C', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+              }}
+            >
+              Save note
+            </button>
+          )}
+        </div>
         </div>
       )}
 
@@ -2622,7 +2542,7 @@ function HistoryItem({ entry, onRestore }: { entry: HistoryEntry; onRestore: (e:
   const isTruncated = entry.text.length > PREVIEW_LEN
 
   return (
-    <div className="rounded-[5px] p-3" style={{ backgroundColor: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+    <div className="rounded-[5px] p-3" style={{ backgroundColor: 'var(--surface-1)' }}>
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <p className="text-xs font-medium leading-snug" style={{ color: 'var(--text-secondary)', flex: 1, minWidth: 0 }}>
           {entry.label}
@@ -2663,7 +2583,7 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5 px-0.5">
-        <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>Project</span>
+        <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>History</span>
         {history.length > 1 && (
           <button
             onClick={onToggleExpanded}
@@ -2679,7 +2599,7 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
       </div>
       {history.length === 0 ? (
         <p className="text-xs px-0.5" style={{ color: 'var(--text-muted)' }}>
-          Each coverage run is saved here so you can compare and restore previous inputs.
+          Each pronunciation check is saved here so you can compare and restore previous scripts and words.
         </p>
       ) : (
         <div className="space-y-2">
@@ -2694,13 +2614,10 @@ function HistoryPanel({ history, expanded, onToggleExpanded, onRestore }: {
 
 // ─── PronunciationPanel ───────────────────────────────────────────────────────
 
-function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClear, onSave, onViewAll, addToast }: {
+function PronunciationPanel({ pronunciations, onClear, onSave, addToast }: {
   pronunciations: Record<string, string>
-  expanded: boolean
-  onToggleExpanded: () => void
   onClear: (word: string) => void
   onSave: (word: string, rime: string) => void
-  onViewAll: () => void
   addToast: (msg: string) => void
 }) {
   const entries = Object.entries(pronunciations)
@@ -2709,6 +2626,7 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
   const [addWord, setAddWord] = useState('')
   const [addRime, setAddRime] = useState('')
   const [addLoading, setAddLoading] = useState(false)
+  const [showJson, setShowJson] = useState(false)
   const wordInputRef = useRef<HTMLInputElement>(null)
 
   // Recording state
@@ -2801,7 +2719,7 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
         <span style={{ fontWeight: 600, fontSize: '15px', color: '#FFFFFF' }}>
-          Custom Pronunciations
+          My Custom Pronunciations
           {entries.length > 0 && <span style={{ marginLeft: '5px', fontSize: '11px', color: '#7C7C7C', fontWeight: 400 }}>({entries.length})</span>}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2820,23 +2738,45 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
               <line x1="4" y1="1" x2="4" y2="7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
               <line x1="1" y1="4" x2="7" y2="4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
-            Add word
+            Add
           </button>
-          {entries.length > 0 && (
-            <button
-              onClick={onViewAll}
-              style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
-            >
-              View all
-            </button>
-          )}
-          {entries.length > 0 && (
-            <button onClick={onToggleExpanded} style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
-              {expanded ? 'Collapse' : 'Expand'}
-            </button>
-          )}
+          <button
+            onClick={() => { if (entries.length > 0) setShowJson(v => !v) }}
+            style={{
+              fontSize: '11px', background: 'none', border: 'none',
+              cursor: entries.length === 0 ? 'default' : 'pointer',
+              padding: '2px 4px',
+              opacity: entries.length === 0 ? 0.3 : 1,
+              color: showJson ? '#CFCFCF' : '#7C7C7C',
+            }}
+          >
+            JSON
+          </button>
+          <button
+            onClick={() => {
+              if (entries.length === 0) return
+              const lines = entries.map(([w, r]) => `${w}: {${r}}`).join('\n')
+              const blob = new Blob([lines], { type: 'text/plain' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'custom-pronunciations.txt'
+              a.click()
+              URL.revokeObjectURL(url)
+              addToast('Exported custom pronunciations')
+            }}
+            style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: entries.length === 0 ? 'default' : 'pointer', padding: '2px 4px', opacity: entries.length === 0 ? 0.3 : 1 }}
+          >
+            Doc
+          </button>
         </div>
       </div>
+
+      {entries.length === 0 && !showAddForm && (
+        <p style={{ fontSize: '12px', color: '#6B6B6B', lineHeight: 1.6, marginTop: '8px', marginBottom: '4px' }}>
+          Override how Rime pronounces any word. For example, add <span style={{ fontFamily: 'ui-monospace, monospace', color: '#888' }}>gyro</span> and set its phonetic to <span style={{ fontFamily: 'ui-monospace, monospace', color: '#888' }}>{'{Jz1ir0o}'}</span> so it sounds like "JEER-oh" instead of "JIE-roh".
+        </p>
+      )}
 
       {/* Add word form */}
       {showAddForm && (
@@ -2851,7 +2791,7 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
             value={addWord}
             onChange={e => setAddWord(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && addWord.trim()) handleLookup() }}
-            placeholder="Word (e.g. anna)"
+            placeholder="Word (e.g. gyro)"
             spellCheck={false}
             style={{
               width: '100%', height: '30px', fontSize: '12px',
@@ -2958,22 +2898,68 @@ function PronunciationPanel({ pronunciations, expanded, onToggleExpanded, onClea
         </div>
       )}
 
-      {entries.length === 0 && !showAddForm ? (
-        <p style={{ fontSize: '11px', color: '#7C7C7C', margin: 0 }}>
-          Edit a word's Rime phonetic and press Save to build your custom map.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-          {entries.map(([w, r]) => (
-            <span key={w} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', border: '0.5px solid rgba(52,211,153,0.25)', backgroundColor: 'rgba(52,211,153,0.06)', color: '#34d399' }}>
-              <span style={{ fontFamily: 'ui-monospace, monospace' }}>{w}</span>
-              <span style={{ color: 'rgba(52,211,153,0.4)' }}>→</span>
-              <span style={{ fontFamily: 'ui-monospace, monospace', color: '#7C7C7C' }}>{`{${r}}`}</span>
-              <button onClick={() => onClear(w)} title={`Clear saved pronunciation for "${w}"`} style={{ marginLeft: '1px', color: 'rgba(52,211,153,0.4)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1, fontSize: '12px' }}>×</button>
+      {/* JSON drawer */}
+      {showJson && entries.length > 0 && (() => {
+        const json = JSON.stringify({ vocabId: 'default', pronunciations: Object.fromEntries(entries.map(([w, r]) => [w, `{${r}}`])) }, null, 2)
+        return (
+          <div style={{
+            marginTop: '10px', borderRadius: '7px',
+            backgroundColor: '#0D0D0D', border: '0.5px solid #2A2A2A',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '7px 12px', borderBottom: '0.5px solid #2A2A2A',
+            }}>
+              <span style={{ fontSize: '11px', color: '#5C5C5C', fontFamily: 'ui-monospace, monospace' }}>custom-pronunciations.json</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(json).catch(() => {}); addToast('JSON copied to clipboard') }}
+                style={{ fontSize: '11px', color: '#7C7C7C', background: 'none', border: 'none', cursor: 'pointer', padding: '0' }}
+              >
+                Copy
+              </button>
+            </div>
+            <pre style={{
+              margin: 0, padding: '12px', overflowX: 'auto',
+              fontSize: '11.5px', lineHeight: 1.6,
+              fontFamily: 'ui-monospace, monospace',
+              color: '#A5A5A5',
+              whiteSpace: 'pre',
+            }}>{json}</pre>
+          </div>
+        )
+      })()}
+
+      {/* Saved custom pronunciation pills */}
+      {entries.length > 0 && (
+        <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+          {entries.map(([word, rime]) => (
+            <span
+              key={word}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                padding: '3px 8px', borderRadius: '6px', fontSize: '12px',
+                backgroundColor: 'rgba(52,211,153,0.07)',
+                border: '0.5px solid rgba(52,211,153,0.28)',
+                color: '#34d399', fontFamily: 'ui-monospace, monospace',
+              }}
+            >
+              {word}
+              <span style={{ opacity: 0.5 }}>→</span>
+              {`{${rime}}`}
+              <button
+                onClick={() => onClear(word)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'inherit', opacity: 0.5, padding: '0 0 0 2px',
+                  fontSize: '13px', lineHeight: 1, display: 'flex', alignItems: 'center',
+                }}
+              >×</button>
             </span>
           ))}
         </div>
       )}
+
     </div>
   )
 }
