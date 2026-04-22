@@ -1921,8 +1921,7 @@ function OovRow({
           <div style={{ borderTop: '0.5px solid #1E1E1E', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
             {/* Close button row */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '11px', color: '#4C4C4C' }}>Fill in either or both — both are optional.</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => { setShowCustomInput(false); setShowNote(false) }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', borderRadius: '4px', border: 'none', backgroundColor: 'transparent', color: '#5C5C5C', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}
