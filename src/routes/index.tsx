@@ -1040,13 +1040,16 @@ function ResearchPage() {
           </div>
 
           {/* Voice picker + Check Coverage button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <VoicePicker
-              voices={voices}
-              selected={selectedVoice}
-              onSelect={v => { setSelectedVoice(v); audioCache.current.clear() }}
-              label="Voice"
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <VoicePicker
+                voices={voices}
+                selected={selectedVoice}
+                onSelect={v => { setSelectedVoice(v); audioCache.current.clear() }}
+                label="Voice"
+                fullWidth
+              />
+            </div>
             <button
               onClick={handleCheck}
               disabled={wordCount === 0 || isBusy}
@@ -1365,11 +1368,13 @@ function VoicePicker({
   selected,
   onSelect,
   label,
+  fullWidth,
 }: {
   voices: VoiceEntry[]
   selected: string
   onSelect: (v: string) => void
   label?: string
+  fullWidth?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -1454,7 +1459,7 @@ function VoicePicker({
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} style={{ position: 'relative', width: fullWidth ? '100%' : undefined }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{
@@ -1462,12 +1467,13 @@ function VoicePicker({
           padding: '6px 10px', borderRadius: '5px',
           backgroundColor: '#161616', border: '0.5px solid #434343',
           color: '#FFFFFF', fontSize: '12px', cursor: 'pointer',
+          width: fullWidth ? '100%' : undefined,
         }}
         title="Select preview voice"
       >
         {label && <span style={{ color: '#A5A5A5', flexShrink: 0 }}>{label}</span>}
         <span style={{ fontWeight: 500, flexShrink: 0 }}>{selected}</span>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}>
           <path d={open ? 'M2 6.5L5 3.5L8 6.5' : 'M2 3.5L5 6.5L8 3.5'} stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
