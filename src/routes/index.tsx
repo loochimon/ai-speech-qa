@@ -1888,8 +1888,9 @@ function OovRow({
       {/* ── Right column: rows ── */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Row 1: Play + spellings */}
+        {/* Row 1: Play buttons then spellings */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', gap: '9px', flex: 1 }}>
+          {/* Play button 1 — default voice */}
           <button
             onClick={() => onPlay(defaultKey, () => fetchWordAudio(word, RIME_API_KEY, selectedVoice))}
             title={`Hear current pronunciation of "${word}"`}
@@ -1900,6 +1901,16 @@ function OovRow({
               : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
             }
           </button>
+          {/* Play button 2 — suggested/custom phonetic */}
+          <PlayButton
+            label={isSaved ? 'Custom' : isEdited ? 'Preview' : 'Suggested'}
+            isLoading={phoneticsLoading || loadingAudio === suggestedKey}
+            isPlaying={playingAudio === suggestedKey}
+            disabled={!hasPhonetic}
+            accent={!isEdited && !isSaved}
+            title={hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay}` : phoneticsLoading ? 'Loading…' : 'No phonetic available'}
+            onClick={() => { if (!hasPhonetic) return; onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice)) }}
+          />
           {pipe}
           <span style={{ fontSize: '11px', color: '#4C4C4C', flexShrink: 0 }}>IPA</span>
           <span style={{ fontSize: '12px', color: '#9C9C9C', fontFamily: 'Georgia, "Times New Roman", serif', flexShrink: 0 }}>
@@ -1910,15 +1921,6 @@ function OovRow({
           <span style={{ fontSize: '12px', fontFamily: 'ui-monospace, monospace', color: isSaved ? '#34d399' : '#9C9C9C', flexShrink: 0 }}>
             {hasPhonetic ? activeRimeDisplay : '{–}'}
           </span>
-          <PlayButton
-            label={isSaved ? 'Custom' : isEdited ? 'Preview' : 'Suggested'}
-            isLoading={phoneticsLoading || loadingAudio === suggestedKey}
-            isPlaying={playingAudio === suggestedKey}
-            disabled={!hasPhonetic}
-            accent={!isEdited && !isSaved}
-            title={hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay}` : phoneticsLoading ? 'Loading…' : 'No phonetic available'}
-            onClick={() => { if (!hasPhonetic) return; onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice)) }}
-          />
         </div>
 
         {/* Row 2: Context | divider | Actions */}
