@@ -1249,7 +1249,7 @@ function ResearchPage() {
 
               {/* OOV list */}
               {results.oovWords.length > 0 ? (
-                <div style={{ margin: '0 -26px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px 0' }}>
                   {results.oovWords.map(({ word, frequency }, i) => (
                     <OovRow
                       key={word}
@@ -1871,381 +1871,176 @@ function OovRow({
   const pipe = <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2A2A2A', flexShrink: 0 }} />
 
   return (
-    <div
-      style={{
-        borderTop: isFirst ? undefined : '0.5px solid #2A2A2A',
-        padding: sentences.length > 0 ? '13px 26px 8px' : '13px 26px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0',
-        minWidth: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-      {/* Word + frequency — fixed width so all buttons align */}
-      <div style={{ width: '200px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-        <span
-          style={{
-            fontFamily: 'ui-monospace, monospace',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: '#FFFFFF',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            flexShrink: 1,
-          }}
-          title={word}
-        >
+    <div style={{ backgroundColor: '#111111', border: '0.5px solid #252525', borderRadius: '8px', overflow: 'hidden', display: 'flex' }}>
+
+      {/* ── Left column: Word + freq ── */}
+      <div style={{ width: '220px', flexShrink: 0, padding: '0 16px', display: 'flex', alignItems: 'center', gap: '7px', borderRight: '0.5px solid #252525' }}>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '13px', fontWeight: 700, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {word}
         </span>
         {frequency > 0 && (
-          <span style={{ fontSize: '11px', color: '#7C7C7C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', color: '#5C5C5C', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
             ×{frequency.toLocaleString()}
           </span>
         )}
       </div>
 
-      {pipe}
+      {/* ── Right column: rows ── */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
-      {/* Current play — small dark circle */}
-      <button
-        onClick={() => onPlay(defaultKey, () => fetchWordAudio(word, RIME_API_KEY, selectedVoice))}
-        title={`Hear current pronunciation of "${word}"`}
-        style={{
-          width: '22px', height: '22px', borderRadius: '50%',
-          border: '0.5px solid #383838', backgroundColor: '#161616',
-          color: playingAudio === defaultKey ? '#FFFFFF' : '#7C7C7C',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}
-      >
-        {loadingAudio === defaultKey
-          ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
-          : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
-        }
-      </button>
+        {/* Row 1: Play + spellings */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', gap: '9px', flex: 1 }}>
+          <button
+            onClick={() => onPlay(defaultKey, () => fetchWordAudio(word, RIME_API_KEY, selectedVoice))}
+            title={`Hear current pronunciation of "${word}"`}
+            style={{ width: '22px', height: '22px', borderRadius: '50%', border: '0.5px solid #383838', backgroundColor: '#161616', color: playingAudio === defaultKey ? '#FFFFFF' : '#7C7C7C', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            {loadingAudio === defaultKey
+              ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
+              : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
+            }
+          </button>
+          {pipe}
+          <span style={{ fontSize: '11px', color: '#4C4C4C', flexShrink: 0 }}>IPA</span>
+          <span style={{ fontSize: '12px', color: '#9C9C9C', fontFamily: 'Georgia, "Times New Roman", serif', flexShrink: 0 }}>
+            {hasPhonetic ? `/${phonetic!.ipa}/` : '/–/'}
+          </span>
+          <span style={{ fontSize: '11px', color: '#2A2A2A', flexShrink: 0 }}>·</span>
+          <span style={{ fontSize: '11px', color: '#4C4C4C', flexShrink: 0 }}>Rime</span>
+          <span style={{ fontSize: '12px', fontFamily: 'ui-monospace, monospace', color: isSaved ? '#34d399' : '#9C9C9C', flexShrink: 0 }}>
+            {hasPhonetic ? activeRimeDisplay : '{–}'}
+          </span>
+          <PlayButton
+            label={isSaved ? 'Custom' : isEdited ? 'Preview' : 'Suggested'}
+            isLoading={phoneticsLoading || loadingAudio === suggestedKey}
+            isPlaying={playingAudio === suggestedKey}
+            disabled={!hasPhonetic}
+            accent={!isEdited && !isSaved}
+            title={hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay}` : phoneticsLoading ? 'Loading…' : 'No phonetic available'}
+            onClick={() => { if (!hasPhonetic) return; onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice)) }}
+          />
+        </div>
 
-      {/* Suggested play button */}
-      <PlayButton
-        label={isSaved ? 'Custom' : isEdited ? 'Preview edit' : 'Suggested'}
-        isLoading={phoneticsLoading || loadingAudio === suggestedKey}
-        isPlaying={playingAudio === suggestedKey}
-        disabled={!hasPhonetic}
-        accent={!isEdited && !isSaved}
-        title={
-          hasPhonetic ? `Hear Rime pronounce ${activeRimeDisplay} with voice: ${selectedVoice}`
-          : phoneticsLoading ? 'Loading…'
-          : 'No phonetic available'
-        }
-        onClick={() => {
-          if (!hasPhonetic) return
-          onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
-        }}
-      />
+        {/* Row 2: Context | divider | Actions */}
+        <div style={{ display: 'flex', alignItems: 'stretch', padding: '0 16px', borderTop: '0.5px solid #1E1E1E', gap: '8px', minWidth: 0 }}>
+          {/* Context */}
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '7px 0' }}>
+            {sentences.length > 0 ? (() => {
+              const s = sentences[0]
+              const parts = s.split(new RegExp(`(${word})`, 'gi'))
+              const wordLower = word.toLowerCase()
+              return (
+                <div style={{ fontSize: '11px', color: '#4C4C4C', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', width: '100%' }}>
+                  {parts.map((part, j) =>
+                    part.toLowerCase() === wordLower
+                      ? <span key={j} style={{ color: '#9C9C9C', fontWeight: 600 }}>{part}</span>
+                      : <span key={j}>{part}</span>
+                  )}
+                </div>
+              )
+            })() : (
+              <span style={{ fontSize: '11px', color: '#2A2A2A' }}>—</span>
+            )}
+          </div>
+          {/* Full-height divider */}
+          <div style={{ width: '0.5px', backgroundColor: '#252525', flexShrink: 0 }} />
+          {/* Action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', flexShrink: 0 }}>
+            <button
+              onClick={() => { setShowCustomInput(v => !v); setShowNote(false) }}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 9px', borderRadius: '4px', border: `0.5px solid ${showCustomInput ? '#5C5C5C' : '#2A2A2A'}`, backgroundColor: showCustomInput ? 'rgba(255,255,255,0.04)' : 'transparent', color: showCustomInput ? '#CFCFCF' : isSaved ? '#34d399' : '#5C5C5C', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              {!isSaved && <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><line x1="4" y1="1" x2="4" y2="7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><line x1="1" y1="4" x2="7" y2="4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
+              {isSaved ? 'Edit' : 'Add pronunciation'}
+            </button>
+            <button
+              onClick={() => { setShowNote(v => !v); setShowCustomInput(false) }}
+              title="Add a note"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '4px', flexShrink: 0, border: `0.5px solid ${showNote ? '#5C5C5C' : '#2A2A2A'}`, backgroundColor: showNote ? 'rgba(255,255,255,0.04)' : 'transparent', color: showNote ? '#CFCFCF' : noteText ? '#9C9C9C' : '#4C4C4C', cursor: 'pointer' }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.1"/>
+                <path d="M3.5 4.5h5M3.5 6.5h5M3.5 8.5h3" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              </svg>
+            </button>
+            {showInlineClear && isSaved && (
+              <button onClick={() => onClearCustomPronunciation(word)} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3C3C3C', fontSize: '15px', lineHeight: 1 }}>×</button>
+            )}
+          </div>
+        </div>
 
-      {pipe}
-
-      {/* IPA — always shown, dash when not loaded */}
-      <span style={{ fontSize: '11px', color: '#7C7C7C', flexShrink: 0 }}>IPA</span>
-      <span style={{ fontSize: '11px', color: '#9C9C9C', fontFamily: 'Georgia, "Times New Roman", serif', flexShrink: 0 }}>
-        {hasPhonetic ? `/${phonetic!.ipa}/` : '/–/'}
-      </span>
-
-      <span style={{ fontSize: '11px', color: '#383838', flexShrink: 0 }}>·</span>
-
-      {/* Rime — read-only display in main row */}
-      <span style={{ fontSize: '11px', color: '#7C7C7C', flexShrink: 0 }}>Rime</span>
-      <span style={{ fontSize: '11px', color: isSaved ? '#34d399' : '#9C9C9C', fontFamily: 'ui-monospace, monospace', flexShrink: 0 }}>
-        {hasPhonetic ? activeRimeDisplay : '{–}'}
-      </span>
-      {isSaved && (
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M1.5 4l2 2L6.5 2" stroke="#34d399" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+        {/* Expanded: pronunciation input */}
+        {showCustomInput && (
+          <div style={{ borderTop: '0.5px solid #1E1E1E', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+              <input
+                autoFocus
+                value={activeRimeDisplay}
+                onChange={e => setEditedRime(e.target.value)}
+                spellCheck={false}
+                placeholder="{phonetic} or spell(word)"
+                style={{ width: '100%', height: '32px', fontSize: '12px', fontFamily: 'ui-monospace, monospace', backgroundColor: '#1A1A1A', border: '0.5px solid #383838', borderRadius: '5px', color: '#FFFFFF', padding: '0 38px 0 10px', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <button
+                onClick={() => { if (!hasPhonetic && !editedRime) return; onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice)) }}
+                disabled={!hasPhonetic && !editedRime}
+                style={{ position: 'absolute', right: '7px', top: '50%', transform: 'translateY(-50%)', width: '22px', height: '22px', borderRadius: '50%', border: '0.5px solid #383838', backgroundColor: '#161616', color: loadingAudio === suggestedKey || playingAudio === suggestedKey ? '#FFFFFF' : '#7C7C7C', cursor: !hasPhonetic && !editedRime ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: !hasPhonetic && !editedRime ? 0.35 : 1, flexShrink: 0 }}
+              >
+                {loadingAudio === suggestedKey ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} /> : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>}
+              </button>
+            </div>
+            {isEdited && (
+              <button onClick={() => setEditedRime(null)} title="Reset" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '5px', border: '0.5px solid #383838', backgroundColor: 'transparent', color: '#7C7C7C', cursor: 'pointer', flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1A4.5 4.5 0 1 0 10 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M7.5 1h2.5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            )}
+            {recState === 'done' && recordedUrl && (
+              <button onClick={handlePlayRecording} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '5px', border: '0.5px solid #383838', backgroundColor: 'transparent', color: recordingPlayback ? '#FFFFFF' : '#7C7C7C', cursor: 'pointer', flexShrink: 0 }}>
+                {recordingPlayback ? <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: '#FFFFFF', display: 'block' }} /> : <svg width="8" height="9" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>}
+              </button>
+            )}
+            <button onClick={handleMicClick} title={micTitle}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '32px', fontSize: '11px', padding: '0 10px', borderRadius: '5px', border: `0.5px solid ${recState === 'idle' ? '#383838' : recState === 'recording' ? 'rgba(239,68,68,0.5)' : '#7C7C7C'}`, backgroundColor: recState === 'recording' ? 'rgba(239,68,68,0.08)' : 'transparent', color: recState === 'idle' ? '#7C7C7C' : recState === 'recording' ? '#ef4444' : '#CFCFCF', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              {recState === 'analyzing' ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}><circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="11 6" strokeLinecap="round"/></svg>
+                : recState === 'recording' ? <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: '#ef4444', display: 'block' }} />
+                : recState === 'done' ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="3.5" y="1" width="3" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M1.5 5a3.5 3.5 0 0 0 7 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><line x1="5" y1="8.5" x2="5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              }
+              {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing…' : 'Redo'}
+            </button>
+            <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2E2E2E', flexShrink: 0 }} />
+            {hasPendingChange ? (
+              <button onClick={() => { onSaveCustomPronunciation(word, activeRimeBare); setShowCustomInput(false) }} style={{ height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px', border: '0.5px solid rgba(52,211,153,0.45)', backgroundColor: 'rgba(52,211,153,0.1)', color: '#34d399', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 600 }}>Save</button>
+            ) : isSaved ? (
+              <button onClick={() => onClearCustomPronunciation(word)} style={{ height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px', border: '0.5px solid rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.07)', color: '#f87171', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>Clear</button>
+            ) : null}
+            <button onClick={() => setShowCustomInput(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '4px', border: 'none', backgroundColor: 'transparent', color: '#5C5C5C', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
+          </div>
+        </div>
       )}
 
-      {/* Right side — pushed right */}
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0', flexShrink: 0 }}>
-        {/* Add custom pronunciation / Saved toggle */}
-        <button
-          onClick={() => setShowCustomInput(v => !v)}
-          title={isSaved ? 'Edit or clear saved pronunciation' : 'Add a custom pronunciation for this word'}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '5px',
-            fontSize: '11px', padding: '4px 10px',
-            borderRadius: '5px',
-            border: `0.5px solid ${showCustomInput ? '#5C5C5C' : '#383838'}`,
-            backgroundColor: showCustomInput ? 'rgba(255,255,255,0.04)' : 'transparent',
-            color: showCustomInput ? '#CFCFCF' : '#7C7C7C',
-            cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-          }}
-        >
-          {isSaved ? (
-            'Edit'
-          ) : (
-            <>
-              <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                <line x1="4.5" y1="1" x2="4.5" y2="8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                <line x1="1" y1="4.5" x2="8" y2="4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-              Add pronunciation
-            </>
-          )}
-        </button>
-
-        {/* Inline clear × — shown in custom pronunciations table */}
-        {showInlineClear && isSaved && (
-          <button
-            onClick={() => onClearCustomPronunciation(word)}
-            title="Remove custom pronunciation"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '20px', height: '20px', borderRadius: '4px', flexShrink: 0,
-              border: 'none', backgroundColor: 'transparent',
-              color: '#3C3C3C', cursor: 'pointer', fontSize: '15px', lineHeight: 1,
-            }}
-          >×</button>
+        {/* Expanded: note input */}
+        {showNote && (
+          <div style={{ borderTop: '0.5px solid #1E1E1E', padding: '10px 16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              autoFocus={showNote && !showCustomInput}
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Add a note about this word…"
+              style={{ flex: 1, height: '30px', fontSize: '12px', backgroundColor: '#1A1A1A', border: '0.5px solid #383838', borderRadius: '5px', color: '#CFCFCF', padding: '0 10px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            />
+            {noteText && (
+              <button onClick={() => setShowNote(false)} style={{ height: '30px', fontSize: '11px', padding: '0 12px', borderRadius: '5px', border: '0.5px solid #383838', backgroundColor: 'transparent', color: '#9C9C9C', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                Save note
+              </button>
+            )}
+            <button onClick={() => setShowNote(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '22px', height: '22px', borderRadius: '4px', border: 'none', backgroundColor: 'transparent', color: '#5C5C5C', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}>×</button>
+          </div>
         )}
 
-      </div>
-      </div>
-
-      {/* Expanded custom pronunciation row */}
-      {showCustomInput && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            marginTop: '8px',
-            padding: '10px 12px',
-            borderRadius: '7px',
-            backgroundColor: '#111111',
-            border: '0.5px solid #2E2E2E',
-          }}
-        >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Rime text input with play button inside */}
-          <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-            <input
-              autoFocus
-              value={activeRimeDisplay}
-              onChange={e => setEditedRime(e.target.value)}
-              spellCheck={false}
-              placeholder="{phonetic} or spell(word)"
-              title="Rime phonetic encoding — use {} for phonemes or spell() for spelling"
-              style={{
-                width: '100%',
-                height: '32px',
-                fontSize: '12px',
-                fontFamily: 'ui-monospace, monospace',
-                backgroundColor: '#1A1A1A',
-                border: '0.5px solid #383838',
-                borderRadius: '5px',
-                color: '#FFFFFF',
-                padding: '0 38px 0 10px',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-            {/* Round play button — inside the input, right side */}
-            <button
-              onClick={() => {
-                if (!hasPhonetic && !editedRime) return
-                onPlay(suggestedKey, () => fetchPhoneticAudio(activeRimeApiText, RIME_API_KEY, selectedVoice))
-              }}
-              disabled={!hasPhonetic && !editedRime}
-              title={`Preview: ${activeRimeDisplay}`}
-              style={{
-                position: 'absolute', right: '7px', top: '50%', transform: 'translateY(-50%)',
-                width: '22px', height: '22px', borderRadius: '50%',
-                border: '0.5px solid #383838', backgroundColor: '#161616',
-                color: loadingAudio === suggestedKey || playingAudio === suggestedKey ? '#FFFFFF' : '#7C7C7C',
-                cursor: !hasPhonetic && !editedRime ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: !hasPhonetic && !editedRime ? 0.35 : 1,
-                flexShrink: 0,
-              }}
-            >
-              {loadingAudio === suggestedKey
-                ? <span style={{ width: '7px', height: '7px', borderRadius: '50%', border: '1px solid #383838', borderTop: '1px solid #9C9C9C', animation: 'spin 0.8s linear infinite', display: 'block' }} />
-                : <svg width="7" height="8" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
-              }
-            </button>
-          </div>
-
-          {/* Reset to original */}
-          {isEdited && (
-            <button
-              onClick={() => setEditedRime(null)}
-              title="Reset to original"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '5px', border: '0.5px solid #383838', backgroundColor: 'transparent', color: '#7C7C7C', cursor: 'pointer', flexShrink: 0 }}
-            >
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                <path d="M5.5 1A4.5 4.5 0 1 0 10 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-                <path d="M7.5 1h2.5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
-
-          {/* Play back recording (shown when recording captured) */}
-          {recState === 'done' && recordedUrl && (
-            <button
-              onClick={handlePlayRecording}
-              title="Play back your recording"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: '26px', height: '26px', borderRadius: '5px',
-                border: '0.5px solid #383838', backgroundColor: 'transparent',
-                color: recordingPlayback ? '#FFFFFF' : '#7C7C7C', cursor: 'pointer', flexShrink: 0,
-              }}
-            >
-              {recordingPlayback
-                ? <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: '#FFFFFF', display: 'block' }} />
-                : <svg width="8" height="9" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1.5v7l6.5-3.5L1 1.5z"/></svg>
-              }
-            </button>
-          )}
-
-          {/* Record button */}
-          <button
-            onClick={handleMicClick}
-            title={micTitle}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              height: '32px', fontSize: '11px', padding: '0 10px',
-              borderRadius: '5px',
-              border: `0.5px solid ${recState === 'idle' ? '#383838' : recState === 'recording' ? 'rgba(239,68,68,0.5)' : '#7C7C7C'}`,
-              backgroundColor: recState === 'recording' ? 'rgba(239,68,68,0.08)' : 'transparent',
-              color: recState === 'idle' ? '#7C7C7C' : recState === 'recording' ? '#ef4444' : '#CFCFCF',
-              cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', boxSizing: 'border-box',
-            }}
-          >
-            {recState === 'analyzing' ? (
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
-                <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3" strokeDasharray="11 6" strokeLinecap="round"/>
-              </svg>
-            ) : recState === 'recording' ? (
-              <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: '#ef4444', display: 'block' }} />
-            ) : recState === 'done' ? (
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M2 5l2 2L8 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <rect x="3.5" y="1" width="3" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M1.5 5a3.5 3.5 0 0 0 7 0" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                <line x1="5" y1="8.5" x2="5" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-            )}
-            {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing…' : 'Redo'}
-          </button>
-
-          <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2E2E2E', flexShrink: 0 }} />
-
-          {/* Save button */}
-          {hasPendingChange ? (
-            <button
-              onClick={() => {
-                onSaveCustomPronunciation(word, activeRimeBare)
-                setShowCustomInput(false)
-              }}
-              title="Save this pronunciation"
-              style={{
-                height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px',
-                border: '0.5px solid rgba(52,211,153,0.45)',
-                backgroundColor: 'rgba(52,211,153,0.1)',
-                color: '#34d399', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 600,
-                boxSizing: 'border-box',
-              }}
-            >
-              Save
-            </button>
-          ) : isSaved ? (
-            <button
-              onClick={() => {
-                onClearCustomPronunciation(word)
-              }}
-              title="Clear saved pronunciation"
-              style={{
-                height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px',
-                border: '0.5px solid rgba(239,68,68,0.3)',
-                backgroundColor: 'rgba(239,68,68,0.07)',
-                color: '#f87171', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                boxSizing: 'border-box',
-              }}
-            >
-              Clear
-            </button>
-          ) : null}
-
-          {/* Close × */}
-          <button
-            onClick={() => setShowCustomInput(false)}
-            title="Close"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '22px', height: '22px', borderRadius: '4px',
-              border: 'none', backgroundColor: 'transparent',
-              color: '#5C5C5C', cursor: 'pointer', flexShrink: 0, fontSize: '16px', lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Notes row */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <input
-            value={noteText}
-            onChange={e => setNoteText(e.target.value)}
-            placeholder="Add a note about this word…"
-            style={{
-              flex: 1, height: '30px', fontSize: '12px',
-              backgroundColor: '#1A1A1A', border: '0.5px solid #383838',
-              borderRadius: '5px', color: '#CFCFCF', padding: '0 10px',
-              outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-            }}
-          />
-          {noteText && (
-            <button
-              onClick={() => setShowNote(false)}
-              style={{
-                height: '30px', fontSize: '11px', padding: '0 12px', borderRadius: '5px',
-                border: '0.5px solid #383838', backgroundColor: 'transparent',
-                color: '#9C9C9C', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-              }}
-            >
-              Save note
-            </button>
-          )}
-        </div>
-        </div>
-      )}
-
-      {/* Sentence context */}
-      {sentences.length > 0 && (
-        <div style={{ paddingBottom: '10px', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {sentences.map((s, i) => {
-            const parts = s.split(new RegExp(`(${word})`, 'gi'))
-            const wordLower = word.toLowerCase()
-            return (
-              <div key={i} style={{ fontSize: '11px', color: '#5C5C5C', lineHeight: 1.5 }}>
-                {sentences.length > 1 && (
-                  <span style={{ color: '#3C3C3C', fontVariantNumeric: 'tabular-nums', marginRight: '6px' }}>
-                    [{i + 1}]
-                  </span>
-                )}
-                {parts.map((part, j) =>
-                  part.toLowerCase() === wordLower
-                    ? <span key={j} style={{ color: '#FFFFFF', fontWeight: 600 }}>{part}</span>
-                    : <span key={j}>{part}</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      </div>{/* end right column */}
     </div>
   )
 }
