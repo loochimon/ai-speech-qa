@@ -1911,7 +1911,7 @@ function OovRow({
               style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '3px 9px', borderRadius: '4px', border: `0.5px solid ${(showCustomInput || showNote) ? '#5C5C5C' : '#2A2A2A'}`, backgroundColor: (showCustomInput || showNote) ? 'rgba(255,255,255,0.04)' : 'transparent', color: (showCustomInput || showNote) ? '#CFCFCF' : isSaved ? '#34d399' : noteText ? '#9C9C9C' : '#5C5C5C', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               {!isSaved && !(showCustomInput || showNote) && <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><line x1="4" y1="1" x2="4" y2="7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><line x1="1" y1="4" x2="7" y2="4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>}
-              {isSaved ? 'Edit' : 'Add pronunciation notes'}
+              {isSaved ? 'Edit' : 'Add pronunciation and notes'}
             </button>
           </div>
         </div>
