@@ -1467,9 +1467,6 @@ function VoicePicker({
       >
         {label && <span style={{ color: '#A5A5A5', flexShrink: 0 }}>{label}</span>}
         <span style={{ fontWeight: 500, flexShrink: 0 }}>{selected}</span>
-        <span style={{ color: '#A5A5A5', fontSize: '11px', whiteSpace: 'nowrap' }}>
-          {selectedEntry ? `${selectedEntry.dialect} · ${selectedEntry.gender} · ${selectedEntry.country}` : ''}
-        </span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
           <path d={open ? 'M2 6.5L5 3.5L8 6.5' : 'M2 3.5L5 6.5L8 3.5'} stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
