@@ -1040,7 +1040,7 @@ function ResearchPage() {
           </div>
 
           {/* Voice picker + Check Coverage button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', marginBottom: '14px' }}>
             <VoicePicker
               voices={voices}
               selected={selectedVoice}
