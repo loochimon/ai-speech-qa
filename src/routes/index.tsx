@@ -1970,7 +1970,6 @@ function OovRow({
                   }
                   {recState === 'idle' ? 'Record' : recState === 'recording' ? 'Stop' : recState === 'analyzing' ? 'Analyzing…' : 'Redo'}
                 </button>
-                <div style={{ width: '0.5px', height: '14px', backgroundColor: '#2E2E2E', flexShrink: 0 }} />
                 {hasPendingChange ? (
                   <button onClick={() => { onSaveCustomPronunciation(word, activeRimeBare) }} style={{ height: '32px', fontSize: '11px', padding: '0 12px', borderRadius: '5px', border: '0.5px solid rgba(52,211,153,0.45)', backgroundColor: 'rgba(52,211,153,0.1)', color: '#34d399', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 600 }}>Save</button>
                 ) : isSaved ? (
