@@ -52,6 +52,26 @@ body {
   overflow-x: hidden;
 }
 
+/* Dark scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2e2e2e;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3e3e3e;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2e2e2e transparent;
+}
+
 @keyframes micPulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
   50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(239,68,68,0.06); }
