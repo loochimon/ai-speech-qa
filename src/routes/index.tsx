@@ -861,68 +861,6 @@ function ResearchPage() {
         </a>
       </div>
 
-      {/* ── Filter bar ── */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-end', gap: '11px',
-        padding: '12px 26px',
-        borderBottom: '0.5px solid #383838',
-      }}>
-        {/* Search input — matches left panel width */}
-        <div style={{ width: '200px', flexShrink: 0 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '6px 10px',
-            backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
-              <circle cx="6" cy="6" r="4.5" stroke="#A5A5A5" strokeWidth="1.2" />
-              <path d="M9.5 9.5L12.5 12.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            <input
-              placeholder="Search words…"
-              style={{
-                flex: 1, background: 'none', border: 'none', outline: 'none',
-                color: '#FFFFFF', fontSize: '12px', fontFamily: 'Inter, sans-serif',
-              }}
-            />
-          </div>
-        </div>
-        {/* Filter dropdowns */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Voice */}
-          <div style={{ flexShrink: 0 }}>
-            <VoicePicker
-              voices={voices}
-              selected={selectedVoice}
-              onSelect={v => { setSelectedVoice(v); audioCache.current.clear() }}
-              label="Voice"
-            />
-          </div>
-          {/* Language */}
-          <div style={{ width: '140px', flexShrink: 0 }}>
-            <div style={{
-              padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
-              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
-            }}>
-              <span style={{ color: '#A5A5A5', flexShrink: 0 }}>Language</span>
-              <span>All</span>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-          </div>
-          {/* Time */}
-          <div style={{ width: '130px', flexShrink: 0 }}>
-            <div style={{
-              padding: '6px 10px', backgroundColor: '#161616', border: '0.5px solid #434343', borderRadius: '5px',
-              fontSize: '12px', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
-            }}>
-              <span style={{ color: '#A5A5A5', flexShrink: 0 }}>Time</span>
-              <span>All Time</span>
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, marginLeft: 'auto' }}><path d="M2 3.5L5 6.5L8 3.5" stroke="#A5A5A5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ── Main content: left panel + divider + right panel ── */}
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 240px)', alignItems: 'stretch' }}>
 
@@ -1063,6 +1001,16 @@ function ResearchPage() {
                 position: 'relative', zIndex: 1,
               }}
             />
+            {/* Word count — bottom-right corner inside the box */}
+            {wordCount > 0 && (
+              <span style={{
+                position: 'absolute', bottom: '6px', right: '10px',
+                fontSize: '11px', color: '#3C3C3C', fontVariantNumeric: 'tabular-nums',
+                pointerEvents: 'none', zIndex: 2, userSelect: 'none',
+              }}>
+                {wordCount} words
+              </span>
+            )}
             {/* Styled empty state — shown when textarea is empty */}
             {!text && (
               <div style={{
@@ -1091,11 +1039,14 @@ function ResearchPage() {
             )}
           </div>
 
-          {/* Word count + Check Coverage button */}
+          {/* Voice picker + Check Coverage button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <span style={{ color: '#BBBBBB', fontSize: '12px' }}>
-              {wordCount} words
-            </span>
+            <VoicePicker
+              voices={voices}
+              selected={selectedVoice}
+              onSelect={v => { setSelectedVoice(v); audioCache.current.clear() }}
+              label="Voice"
+            />
             <button
               onClick={handleCheck}
               disabled={wordCount === 0 || isBusy}
